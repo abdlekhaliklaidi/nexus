@@ -1,0 +1,44 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: product-service
+
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI}
+
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 20MB
+
+  web:
+    resources:
+      static-locations:
+        - file:uploads/
+
+  kafka:
+    # bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+    # bootstrap-servers: ${KAFKA_HOST}
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+
+    consumer:
+      group-id: product-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.type.mapping: "buy01.user_service.event.UserDeletedEvent:buy01.product_service.event.UserDeletedEvent"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+media:
+  service:
+    url: media-service:8083

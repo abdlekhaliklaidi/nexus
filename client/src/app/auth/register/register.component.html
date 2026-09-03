@@ -1,0 +1,166 @@
+<div class="min-h-screen bg-[#0a1120] flex items-center justify-center p-6 antialiased font-sans">
+
+  <!-- Main Card Container -->
+  <div class="w-full max-w-5xl bg-white border border-[#001830]/10 rounded-2xl shadow-[0_20px_50px_rgba(0,24,48,0.15)] overflow-hidden">
+
+    <div class="grid md:grid-cols-3">
+
+      <!-- ================= LEFT COLUMN (HERO SIDEBAR) ================= -->
+      <div class="bg-[#001830] p-10 flex flex-col items-center justify-between text-center min-h-[500px]">
+        <div class="flex flex-col items-center w-full my-auto">
+          <!-- Logo / Platform Minimalist Identifier -->
+          <div class="w-16 h-16 rounded-full border border-white/20 flex items-center justify-center mb-6 bg-white/5">
+            <span class="text-white text-xl font-black font-mono tracking-tighter">01E</span>
+          </div>
+
+          <h1 class="text-3xl font-black text-white tracking-tight uppercase">
+            Join 01E-COM
+          </h1>
+
+          <div class="w-12 h-[2px] bg-white/30 my-4"></div>
+
+          <p class="text-sm text-white/70 max-w-[220px] leading-relaxed">
+            Create your account to start secure buying or selling on our unified gateway.
+          </p>
+        </div>
+
+        <!-- System Status Indicator at Bottom -->
+        <p class="text-xs text-white/30 tracking-wider uppercase font-mono">
+          Secure Authentication Protocol
+        </p>
+      </div>
+
+      <!-- ================= RIGHT COLUMN (REGISTRATION FORM) ================= -->
+      <div class="md:col-span-2 p-10 flex flex-col justify-between bg-white">
+
+        <form [formGroup]="form" (ngSubmit)="register()" class="space-y-8">
+
+          <div>
+            <!-- Header Bar -->
+            <div class="flex justify-between items-center pb-6 mb-8 border-b-2 border-[#001830]">
+              <h2 class="text-2xl font-black text-[#001830] tracking-tight uppercase">
+                Create Account
+              </h2>
+              <span class="bg-[#001830] text-white text-[10px] font-mono uppercase tracking-widest px-3 py-1 font-bold">
+                Identity Setup
+              </span>
+            </div>
+
+            <!-- Avatar Upload Segment -->
+            <div class="mb-8 p-4 bg-gray-50/60 border border-[#001830]/5 rounded-xl flex items-center gap-6">
+              <!-- Monochromatic Avatar Preview Frame -->
+              <div class="w-20 h-20 rounded-full overflow-hidden border-2 border-[#001830]/20 p-1 bg-white shrink-0">
+                <img *ngIf="avatarPreview; else defaultAvatar" [src]="avatarPreview" alt="Avatar Preview" class="w-full h-full rounded-full object-cover">
+                <ng-template #defaultAvatar>
+                  <div class="w-full h-full rounded-full bg-[#001830]/5 flex items-center justify-center text-[#001830]/40">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5.121 17.804A9.969 9.969 0 0112 15c2.21 0 4.253.716 5.879 1.926M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                </ng-template>
+              </div>
+
+              <!-- Upload Interactive Triggers -->
+              <div>
+                <label for="avatar" class="cursor-pointer inline-flex items-center bg-[#001830] hover:bg-[#001830]/90 text-white text-xs font-bold uppercase tracking-widest px-4 py-2.5 rounded-lg transition shadow-sm">
+                  Pick Avatar
+                </label>
+                <input id="avatar" type="file" accept="image/*" (change)="onAvatarSelected($event)" hidden>
+                <p class="text-[11px] font-medium text-gray-400 mt-1.5 uppercase tracking-wider">
+                  JPG, PNG or WEBP (Optional)
+                </p>
+              </div>
+            </div>
+
+            <!-- Fields Configuration Grid -->
+            <div class="grid sm:grid-cols-2 gap-px bg-[#001830]/10 border border-[#001830]/10 rounded-xl overflow-hidden shadow-inner">
+
+              <!-- Username Field -->
+              <div class="bg-white p-5 transition-colors focus-within:bg-gray-50/50">
+                <label class="block text-[11px] font-bold tracking-widest uppercase text-gray-400 mb-1">
+                  Username
+                </label>
+                <input type="text" formControlName="username" placeholder="Enter username" class="w-full text-base font-semibold text-[#001830] bg-transparent border-b border-[#001830]/20 py-1 focus:outline-none focus:border-[#001830] transition-colors tracking-tight placeholder-gray-300">
+                
+                <!-- Front-end Username Error Alerts -->
+                <div *ngIf="form.get('username')?.touched && form.get('username')?.invalid" class="text-red-600 mt-1.5 font-mono text-[10px] uppercase tracking-wide">
+                  <span *ngIf="form.get('username')?.hasError('required')">Username is required</span>
+                  <span *ngIf="form.get('username')?.hasError('minlength')">Minimum 3 characters required</span>
+                </div>
+              </div>
+
+              <!-- Email Field -->
+              <div class="bg-white p-5 transition-colors focus-within:bg-gray-50/50">
+                <label class="block text-[11px] font-bold tracking-widest uppercase text-gray-400 mb-1">
+                  Email Address
+                </label>
+                <input type="email" formControlName="email" placeholder="name@domain.com" class="w-full text-base font-semibold text-[#001830] bg-transparent border-b border-[#001830]/20 py-1 focus:outline-none focus:border-[#001830] transition-colors tracking-tight placeholder-gray-300">
+                
+                <!-- Front-end Email Error Alerts -->
+                <div *ngIf="form.get('email')?.touched && form.get('email')?.invalid" class="text-red-600 mt-1.5 font-mono text-[10px] uppercase tracking-wide">
+                  <span *ngIf="form.get('email')?.hasError('required')">Email address is required</span>
+                  <span *ngIf="form.get('email')?.hasError('email')">Invalid email address layout</span>
+                </div>
+              </div>
+
+              <!-- Password Field -->
+              <div class="bg-white p-5 transition-colors focus-within:bg-gray-50/50">
+                <label class="block text-[11px] font-bold tracking-widest uppercase text-gray-400 mb-1">
+                  Secure Password
+                </label>
+                <input type="password" formControlName="password" placeholder="••••••••" class="w-full text-base font-semibold text-[#001830] bg-transparent border-b border-[#001830]/20 py-1 focus:outline-none focus:border-[#001830] transition-colors tracking-tight placeholder-gray-300">
+                
+                <!-- Front-end Password Error Alerts -->
+                <div *ngIf="form.get('password')?.touched && form.get('password')?.invalid" class="text-red-600 mt-1.5 font-mono text-[10px] uppercase tracking-wide">
+                  <span *ngIf="form.get('password')?.hasError('required')">Password security is required</span>
+                  <span *ngIf="form.get('password')?.hasError('minlength')">Password must be at least 6 characters</span>
+                </div>
+              </div>
+
+              <!-- Account Type Field -->
+              <div class="bg-white p-5 transition-colors focus-within:bg-gray-50/50">
+                <label class="block text-[11px] font-bold tracking-widest uppercase text-gray-400 mb-1">
+                  Account Type
+                </label>
+                <select formControlName="role" class="w-full text-base font-mono font-bold text-[#001830]/80 bg-transparent border-b border-[#001830]/20 py-1 focus:outline-none focus:border-[#001830] transition-colors tracking-tight cursor-pointer">
+                  <option value="CLIENT">CLIENT</option>
+                  <option value="SELLER">SELLER</option>
+                </select>
+                
+                <!-- Front-end Role Error Alerts -->
+                <div *ngIf="form.get('role')?.touched && form.get('role')?.invalid" class="text-red-600 mt-1.5 font-mono text-[10px] uppercase tracking-wide">
+                  <span *ngIf="form.get('role')?.hasError('required')">Account type choice is mandatory</span>
+                  <span *ngIf="form.get('role')?.hasError('pattern')">Invalid system role chosen</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Error Feedback System (Dynamic Server Error Summary) -->
+          <div *ngIf="error" class="rounded-lg bg-red-50 border-l-4 border-red-600 text-red-900 px-4 py-3 text-xs font-semibold tracking-wide uppercase font-mono">
+            Error: {{ error }}
+          </div>
+
+          <!-- ================= ACTION BOTTOM BAR ================= -->
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-6 pt-6 border-t border-[#001830]/10">
+            <div class="text-center sm:text-left">
+              <span class="text-sm text-gray-400 font-medium">Already registered?</span>
+              <a [routerLink]="'/login'" class="ml-1.5 text-sm font-bold text-[#001830] hover:underline uppercase tracking-wider">
+                Login
+              </a>
+            </div>
+
+            <!-- Added form.invalid protection into the disabled state to visually map blocks instantly -->
+            <button type="submit" [disabled]="loading || form.invalid" class="w-full sm:w-auto bg-[#001830] hover:bg-[#001830]/90 text-white font-bold text-xs uppercase tracking-widest py-4 px-8 rounded-lg transition shadow-md disabled:opacity-40 disabled:cursor-not-allowed">
+              {{ loading ? 'Processing Register...' : 'Complete Registration' }}
+            </button>
+          </div>
+
+        </form>
+      </div>
+
+    </div>
+  </div>
+
+</div>

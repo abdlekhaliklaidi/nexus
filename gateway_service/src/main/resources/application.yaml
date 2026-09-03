@@ -1,0 +1,73 @@
+server:
+  port: 8089
+  ssl:
+    key-store: classpath:keystore.p12
+    key-store-password: ${SSL_KEYSTORE_PASSWORD:change_this_in_production}
+    key-store-type: PKCS12
+    key-alias: 1
+
+spring:
+  application:
+    name: gateway-service
+
+  codec:
+    max-in-memory-size: 20MB
+
+  cloud:
+    gateway:
+      httpclient:
+        ssl:
+          useInsecureTrustManager: true
+          handshake-timeout: 10000ms
+
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "https://localhost:8443"
+              - "https://localhost:4200"
+              - "http://localhost:8080"
+              - "https://frontend:8443"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+
+      routes:
+        - id: user-service
+          uri: ${USER_SERVICE_URL:http://user-service:8081}
+          predicates:
+            - Path=/api/auth/**
+
+        - id: product-service
+          uri: ${PRODUCT_SERVICE_URL:http://product-service:8082}
+          predicates:
+            - Path=/api/products/**
+
+        - id: media-service
+          uri: ${MEDIA_SERVICE_URL:http://media-service:8083}
+          predicates:
+            - Path=/api/media/**, /api/uploads/**
+
+        - id: cart-service
+          uri: ${CART_SERVICE_URL:http://cart-service:8085}
+          predicates:
+            - Path=/api/v1/cart/**
+
+        - id: order-service
+          uri: ${ORDER_SERVICE_URL:http://order-service:8084}
+          predicates:
+            - Path=/api/v1/orders/**
+
+jwt:
+  secret: ${JWT_SECRET:mydummysecretkey_for_testing_purposes_only_please_change_this_in_production}
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    reactor.netty.http.client: INFO

@@ -1,0 +1,117 @@
+<div class="min-h-screen bg-slate-900 text-slate-100 py-10 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-5xl mx-auto">
+    <div *ngIf="cartMessage" class="w-full max-w-5xl mb-4 bg-red-950/80 border border-red-800 text-red-400 p-4 rounded-xl font-mono text-xs uppercase shadow-sm flex items-center justify-between">
+      <span class="break-words max-w-full">{{ cartMessage }}</span>
+      <button type="button" (click)="dismissCartMessage()" class="text-red-400 hover:text-white ml-4 font-bold">✕</button>
+    </div>
+
+    <div class="flex justify-between items-center mb-8 border-b border-slate-700 pb-4">
+      <h1 class="text-3xl font-extrabold tracking-tight text-white">Shopping Cart</h1>
+      <button *ngIf="cartService.cart().items.length > 0" (click)="clearCart()"
+        class="text-xs text-rose-400 hover:text-rose-300 font-mono uppercase tracking-wider underline">
+        Clear Cart
+      </button>
+    </div>
+
+    @if (cartService.cart().items.length === 0) {
+      <div class="bg-slate-800 rounded-xl p-12 text-center border border-slate-700 shadow-xl">
+        <svg class="mx-auto h-16 w-16 text-slate-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+        </svg>
+        <h3 class="text-xl font-bold text-white mb-2">Your cart is empty</h3>
+        <p class="text-slate-400 mb-6">Looks like you haven't added any items to your cart yet.</p>
+        <a routerLink="/products" class="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition shadow-lg">
+          Explore Products
+        </a>
+      </div>
+    } @else {
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Cart Items List -->
+        <div class="lg:col-span-2 space-y-4">
+          @for (item of cartService.cart().items; track item.productId) {
+            <div class="bg-slate-800 border border-slate-700/80 rounded-xl p-4 sm:p-5 flex items-center justify-between shadow-md hover:border-slate-600 transition">
+              <div class="flex items-center space-x-4">
+                @if (item.imageUrl) {
+                  <img [src]="item.imageUrl" [alt]="item.productName" class="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover bg-slate-950 border border-slate-700">
+                } @else {
+                  <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-slate-950 border border-slate-700 flex items-center justify-center text-slate-500 text-xs">
+                    No Image
+                  </div>
+                }
+                <div>
+                  <h3 class="font-bold text-white text-base sm:text-lg">{{ item.productName }}</h3>
+                  <p class="text-slate-400 text-sm mb-2">Unit Price: ${{ item.price }}</p>
+
+                  <!-- Quantity Stepper Controls -->
+                  <div class="inline-flex items-center border border-slate-700 rounded-lg bg-slate-900">
+                    <button (click)="updateQuantity(item.productId, item.quantity, -1)"
+                      class="px-3 py-1 text-slate-300 hover:bg-slate-800 hover:text-white rounded-l-lg transition font-mono font-bold">
+                      -
+                    </button>
+                    <span class="px-3 py-1 text-xs font-mono font-bold text-blue-400 border-x border-slate-700">
+                      {{ item.quantity }}
+                    </span>
+                    <button (click)="updateQuantity(item.productId, item.quantity, 1)"
+                      class="px-3 py-1 text-slate-300 hover:bg-slate-800 hover:text-white rounded-r-lg transition font-mono font-bold">
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="text-right">
+                <p class="text-lg font-extrabold text-white mb-2">
+                  ${{ (item.price * item.quantity).toFixed(2) }}
+                </p>
+                <button (click)="removeItem(item.productId)" class="text-rose-400 hover:text-rose-300 text-xs sm:text-sm font-semibold transition">
+                  Remove
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+
+        <div *ngIf="cartTotalPages > 1 || cartTotalItems > 0" class="lg:col-span-2 flex items-center justify-between mt-4 border-t border-slate-700 pt-4">
+          <button type="button" (click)="previousCartPage()" [disabled]="cartPage === 0"
+            class="px-4 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-700">
+            Previous
+          </button>
+          <span class="text-xs font-mono uppercase tracking-wider text-slate-400">
+            Page {{ cartPage + 1 }} / {{ cartTotalPages || 1 }}
+          </span>
+          <button type="button" (click)="nextCartPage()" [disabled]="cartPage >= cartTotalPages - 1"
+            class="px-4 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-700">
+            Next
+          </button>
+        </div>
+
+        <!-- Order Summary Sidebar -->
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-6 h-fit shadow-xl">
+          <h2 class="text-xl font-bold text-white mb-4 border-b border-slate-700 pb-3">Order Summary</h2>
+          
+          <div class="space-y-3 text-sm text-slate-300 mb-6">
+            <div class="flex justify-between">
+              <span>Total Items</span>
+              <span class="font-bold text-white">{{ cartService.itemCount() }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Shipping Method</span>
+              <span class="text-emerald-400 font-semibold">Pay on Delivery</span>
+            </div>
+            <div class="border-t border-slate-700 pt-3 flex justify-between text-base font-bold text-white">
+              <span>Total Amount</span>
+              <span class="text-blue-400 text-xl">${{ cartService.totalAmount().toFixed(2) }}</span>
+            </div>
+          </div>
+
+          <button (click)="proceedToCheckout()" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-lg font-bold transition shadow-lg">
+            Proceed to Checkout
+          </button>
+          <p class="mt-3 text-xs text-slate-400">Available stock is checked before your order is confirmed.</p>
+        </div>
+
+      </div>
+    }
+  </div>
+</div>

@@ -1,0 +1,31 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: user-service
+
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI}
+     
+
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST}
+      port: 6379
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 10m
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+    
+    
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+jwt:
+  secret: ${JWT_SECRET:mydummysecretkey_for_testing_purposes_only_please_change_this_in_production}

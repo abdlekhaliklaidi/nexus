@@ -1,0 +1,433 @@
+<div class="min-h-screen bg-[#0a1120] flex flex-col items-center justify-center p-6 antialiased font-sans">
+
+  <!-- Navigation Bar -->
+  <div class="w-full max-w-5xl flex items-center justify-between mb-4">
+    <button 
+      type="button"
+      (click)="goBack()" 
+      class="flex items-center gap-2 text-xs font-mono tracking-widest uppercase text-white/60 hover:text-white transition-colors cursor-pointer">
+      &larr; Back to Products
+    </button>
+  </div>
+
+  <!-- Loading State Blanket -->
+  <div *ngIf="isLoading" class="text-center animate-pulse py-20">
+    <h1 class="text-white text-2xl font-semibold tracking-wider">
+      Loading Product Details...
+    </h1>
+  </div>
+
+  <!-- Top Global Error Banner -->
+  <div *ngIf="error" class="w-full max-w-5xl mb-4 bg-red-950/80 border border-red-800 text-red-400 p-4 rounded-xl font-mono text-xs uppercase shadow-sm flex items-center justify-between">
+    <span class="break-words max-w-full">{{ error }}</span>
+    <button (click)="error = null" class="text-red-400 hover:text-white ml-4 font-bold">✕</button>
+  </div>
+
+  <!-- Added to Cart Toast Notification -->
+  <div *ngIf="cartSuccessMessage" class="w-full max-w-5xl mb-4 bg-emerald-950/90 border border-emerald-600 text-emerald-300 p-4 rounded-xl font-mono text-xs uppercase shadow-lg flex items-center justify-between animate-bounce">
+    <span class="flex items-center gap-2 font-bold">
+      ✓ Item successfully added to your shopping cart!
+    </span>
+    <button (click)="cartSuccessMessage = false" class="text-emerald-300 hover:text-white ml-4 font-bold">✕</button>
+  </div>
+
+  <!-- Main Card Container -->
+  <div *ngIf="product && !isLoading" [formGroup]="form"
+    class="w-full max-w-5xl bg-white border border-[#001830]/10 rounded-2xl shadow-[0_20px_50px_rgba(0,24,48,0.15)] overflow-hidden">
+
+    <div class="grid md:grid-cols-3">
+
+      <!-- ================= LEFT COLUMN (PRODUCT IMAGES & GALLERY) ================= -->
+      <div class="bg-[#001830] p-8 flex flex-col items-center justify-between text-center min-h-[500px]">
+        
+        <div class="flex flex-col items-center w-full">
+          
+          <!-- Image Frame -->
+          <div class="relative group w-full aspect-square max-w-[280px]">
+            <div class="w-full h-full rounded-2xl border-2 border-white/20 p-2 bg-white/5 transition-all duration-300 group-hover:border-white flex items-center justify-center overflow-hidden">
+              <img 
+                [src]="currentImage" 
+                [alt]="product.name || 'Product Image'" 
+                (click)="!editing && openFullImageView()"
+                class="w-full h-full object-contain rounded-xl"
+                [class.cursor-zoom-in]="!editing" />
+            </div>
+
+            <!-- Upload Overlay Filter in Edit Mode -->
+            <ng-container *ngIf="editing">
+              <label 
+                for="file-upload"
+                class="absolute inset-0 rounded-2xl bg-[#001830]/80 text-white flex flex-col items-center justify-center cursor-pointer transition-opacity opacity-0 group-hover:opacity-100 backdrop-blur-xs">
+                <span class="text-2xl">📷</span>
+                <span class="text-[10px] uppercase font-bold tracking-wider mt-1">Replace Images</span>
+              </label>
+              <input 
+                id="file-upload" 
+                type="file" 
+                multiple 
+                accept="image/*" 
+                class="hidden" 
+                (change)="onImagesSelected($event)" />
+            </ng-container>
+          </div>
+
+          <!-- Thumbnail Gallery Switcher with Delete Action -->
+          <div *ngIf="imagePreviews.length > 0" class="flex gap-2.5 mt-4 overflow-x-auto max-w-[280px] p-1">
+            <div 
+              *ngFor="let img of imagePreviews; let i = index" 
+              class="relative group/thumb flex-shrink-0">
+              
+              <!-- Thumbnail Button -->
+              <button 
+                type="button"
+                (click)="selectImage(i)"
+                [ngClass]="{
+                  'border-white ring-2 ring-white/50': i === selectedImageIndex,
+                  'border-white/20 hover:border-white/60': i !== selectedImageIndex
+                }"
+                class="w-12 h-12 rounded-lg border-2 bg-white/10 overflow-hidden cursor-pointer transition-all block">
+                <img [src]="img" alt="Product thumbnail" class="w-full h-full object-contain p-0.5" />
+              </button>
+
+              <!-- Individual Delete Button -->
+              <button 
+                *ngIf="editing && img !== DEFAULT_NO_IMAGE"
+                type="button"
+                (click)="removeImage(i, $event)"
+                title="Remove image"
+                class="absolute -top-1.5 -right-1.5 bg-red-600 hover:bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-md transition-all scale-90 hover:scale-100 z-10 cursor-pointer">
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <!-- Stock Status Badge -->
+          <div class="mt-6">
+            <span 
+              class="px-4 py-1.5 rounded-sm border text-xs font-mono tracking-widest uppercase bg-white/5"
+              [ngClass]="(product.quantity > 0) ? 'border-emerald-500/50 text-emerald-400' : 'border-red-500/50 text-red-400'">
+              {{ (product.quantity > 0) ? ('In Stock: ' + product.quantity) : 'Out of Stock' }}
+            </span>
+          </div>
+
+        </div>
+
+        <!-- Hint Text Pinned at Bottom -->
+        <div class="w-full mt-6">
+          <p *ngIf="editing" class="text-xs text-white/50 max-w-[220px] mx-auto leading-relaxed">
+            Hover image to upload replacement photos for this item.
+          </p>
+          <p *ngIf="!editing" class="text-xs text-white/30 tracking-wider uppercase font-mono">
+            Catalog ID: {{ product.id?.slice(-8) }}
+          </p>
+        </div>
+
+      </div>
+
+      <!-- ================= RIGHT COLUMN (PRODUCT DETAILS INLINE FORM) ================= -->
+      <div class="md:col-span-2 p-10 flex flex-col justify-between bg-white overflow-hidden">
+        
+        <div>
+          <!-- Header Bar -->
+          <div class="flex justify-between items-center pb-6 mb-8 border-b-2 border-[#001830]">
+            <h2 class="text-2xl font-black text-[#001830] tracking-tight uppercase">
+              Product Specification
+            </h2>
+            <span *ngIf="editing" 
+              class="bg-[#001830] text-white text-xs font-mono uppercase tracking-widest px-3 py-1 font-bold animate-pulse">
+              [ Editing Product ]
+            </span>
+          </div>
+
+          <!-- Information Fields Grid -->
+          <div class="grid sm:grid-cols-2 gap-px bg-[#001830]/10 border border-[#001830]/10 rounded-xl overflow-hidden shadow-inner">
+            
+            <!-- Product Name -->
+            <div class="sm:col-span-2 bg-white p-5 transition-colors hover:bg-gray-50/50 overflow-hidden">
+              <div class="flex justify-between items-center mb-1">
+                <label class="block text-[11px] font-bold tracking-widest uppercase text-gray-400">
+                  Product Title
+                </label>
+                <span *ngIf="editing" class="text-[10px] font-mono text-gray-400">
+                  {{ form.get('name')?.value?.length || 0 }}/100
+                </span>
+              </div>
+
+              <!-- View Mode -->
+              <div *ngIf="!editing" class="text-xl font-bold text-[#001830] tracking-wide uppercase break-words">
+                {{ product.name }}
+              </div>
+
+              <!-- Edit Mode -->
+              <div *ngIf="editing">
+                <input formControlName="name" type="text" maxlength="100"
+                  class="w-full text-lg font-bold text-[#001830] bg-transparent border-b border-[#001830] py-1 focus:outline-none focus:border-b-2 tracking-tight" />
+                
+                <div *ngIf="form.get('name')?.invalid && form.get('name')?.touched" class="text-red-600 mt-1.5 font-mono text-[10px] uppercase tracking-wide">
+                  <span *ngIf="form.get('name')?.errors?.['required']">Title is required</span>
+                  <span *ngIf="form.get('name')?.errors?.['minlength']">Minimum 3 characters required</span>
+                  <span *ngIf="form.get('name')?.errors?.['maxlength']">Maximum 100 characters allowed</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Category Field -->
+            <div class="bg-white p-5 transition-colors hover:bg-gray-50/50 overflow-hidden">
+              <label class="block text-[11px] font-bold tracking-widest uppercase text-gray-400 mb-1">
+                Category
+              </label>
+
+              <div *ngIf="!editing" class="text-base font-bold tracking-wide uppercase text-[#001830] break-all">
+                {{ product.category?.trim() || 'Uncategorized' }}
+              </div>
+
+              <div *ngIf="editing">
+                <select formControlName="category"
+                  class="w-full text-base font-semibold text-[#001830] bg-transparent border-b border-[#001830] py-1 focus:outline-none focus:border-b-2 tracking-tight">
+                  <option value="" disabled>Select a category</option>
+                  <option *ngFor="let categoryOption of categories" [value]="categoryOption">
+                    {{ categoryOption }}
+                  </option>
+                </select>
+                <div *ngIf="form.get('category')?.invalid && form.get('category')?.touched" class="text-red-600 mt-1.5 font-mono text-[10px] uppercase tracking-wide">
+                  Category is required
+                </div>
+              </div>
+            </div>
+
+            <!-- Price Field -->
+            <div class="bg-white p-5 transition-colors hover:bg-gray-50/50 overflow-hidden">
+              <label class="block text-[11px] font-bold tracking-widest uppercase text-gray-400 mb-1">
+                Price ($)
+              </label>
+
+              <!-- View Mode -->
+              <div *ngIf="!editing" class="text-lg font-bold text-[#001830] tracking-wide uppercase break-all">
+                {{ product.price }} $
+              </div>
+
+              <!-- Edit Mode -->
+              <div *ngIf="editing">
+                <input formControlName="price" type="number" step="0.01" min="0.01" max="9999999.99" (input)="onPriceInput($event)"
+                  class="w-full text-base font-semibold text-[#001830] bg-transparent border-b border-[#001830] py-1 focus:outline-none focus:border-b-2 tracking-tight" />
+                
+                <div *ngIf="form.get('price')?.invalid && form.get('price')?.touched" class="text-red-600 mt-1.5 font-mono text-[10px] uppercase tracking-wide">
+                  <span *ngIf="form.get('price')?.errors?.['required']">Price is required</span>
+                  <span *ngIf="form.get('price')?.errors?.['min']">Price must be greater than 0</span>
+                  <span *ngIf="form.get('price')?.errors?.['max']">Price exceeds maximum allowed limit</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quantity Field -->
+            <div class="bg-[#fafafa] sm:bg-white p-5 transition-colors hover:bg-gray-50/50 overflow-hidden">
+              <label class="block text-[11px] font-bold tracking-widest uppercase text-gray-400 mb-1">
+                Stock Inventory
+              </label>
+
+              <!-- View Mode -->
+              <div *ngIf="!editing" class="text-base font-bold tracking-wide uppercase text-[#001830] break-all">
+                {{ product.quantity }} Units
+              </div>
+
+              <!-- Edit Mode -->
+              <div *ngIf="editing">
+                <input formControlName="quantity" type="number" min="0" max="999999"
+                  class="w-full text-base font-semibold text-[#001830] bg-transparent border-b border-[#001830] py-1 focus:outline-none focus:border-b-2 tracking-tight" />
+                
+                <div *ngIf="form.get('quantity')?.invalid && form.get('quantity')?.touched" class="text-red-600 mt-1.5 font-mono text-[10px] uppercase tracking-wide">
+                  <span *ngIf="form.get('quantity')?.errors?.['required']">Quantity is required</span>
+                  <span *ngIf="form.get('quantity')?.errors?.['min']">Quantity cannot be negative</span>
+                  <span *ngIf="form.get('quantity')?.errors?.['max']">Quantity exceeds limit</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Description Field -->
+            <div class="sm:col-span-2 bg-white p-5 transition-colors hover:bg-gray-50/50 overflow-hidden">
+              <div class="flex justify-between items-center mb-1">
+                <label class="block text-[11px] font-bold tracking-widest uppercase text-gray-400">
+                  Detailed Description
+                </label>
+                <span *ngIf="editing" class="text-[10px] font-mono text-gray-400">
+                  {{ form.get('description')?.value?.length || 0 }}/1000
+                </span>
+              </div>
+
+              <!-- View Mode -->
+              <div *ngIf="!editing" class="text-sm font-bold tracking-wide text-gray-600 leading-relaxed whitespace-pre-wrap break-words">
+                {{ product.description }}
+              </div>
+
+              <!-- Edit Mode -->
+              <div *ngIf="editing">
+                <textarea formControlName="description" rows="4" maxlength="1000"
+                  class="w-full text-sm text-[#001830] bg-transparent border-b border-[#001830] py-1 focus:outline-none focus:border-b-2 tracking-tight leading-relaxed resize-y"></textarea>
+                
+                <div *ngIf="form.get('description')?.invalid && form.get('description')?.touched" class="text-red-600 mt-1.5 font-mono text-[10px] uppercase tracking-wide">
+                  <span *ngIf="form.get('description')?.errors?.['required']">Description is required</span>
+                  <span *ngIf="form.get('description')?.errors?.['minlength']">Minimum 10 characters required</span>
+                  <span *ngIf="form.get('description')?.errors?.['maxlength']">Maximum 1000 characters allowed</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ================= ACTION BAR ================= -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-12 pt-6 border-t border-[#001830]/10">
+          
+          <!-- View Mode (Buyer / Non-Owner Actions) -->
+          <ng-container *ngIf="!isOwner && !editing">
+            <button 
+              type="button"
+              (click)="addToCart()"
+              [disabled]="product.quantity <= 0 || isAddingToCart"
+              class="sm:col-span-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-widest py-4 px-6 rounded-lg transition shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <span>{{ isAddingToCart ? 'Adding to Cart...' : (product.quantity > 0 ? 'Add to Shopping Cart' : 'Item Sold Out') }}</span>
+            </button>
+          </ng-container>
+
+          <!-- View Mode (Product Owner Actions) -->
+          <ng-container *ngIf="isOwner && !editing">
+            <button 
+              type="button"
+              (click)="editProduct()"
+              class="bg-[#001830] hover:bg-[#001830]/90 text-white font-bold text-xs uppercase tracking-widest py-3.5 px-4 rounded-lg transition shadow-sm cursor-pointer">
+              Edit Details
+            </button>
+
+            <button 
+              type="button"
+              (click)="openDeleteModal()"
+              class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 hover:border-red-300 font-bold text-xs uppercase tracking-widest py-3.5 px-4 rounded-lg transition cursor-pointer flex items-center justify-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete Item
+            </button>
+          </ng-container>
+
+          <!-- Edit Mode Controls -->
+          <ng-container *ngIf="editing">
+            <button 
+              type="button"
+              (click)="saveProduct()" 
+              [disabled]="isSaving || form.invalid"
+              class="bg-[#001830] hover:bg-[#001830]/90 text-white font-bold text-xs uppercase tracking-widest py-3.5 px-4 rounded-lg transition shadow-md disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
+              {{ isSaving ? 'Saving...' : 'Save Product' }}
+            </button>
+
+            <button 
+              type="button"
+              (click)="cancelEdit()" 
+              [disabled]="isSaving"
+              class="border border-gray-300 text-gray-500 hover:border-[#001830] hover:text-[#001830] font-bold text-xs uppercase tracking-widest py-3.5 px-4 rounded-lg transition disabled:opacity-40 cursor-pointer">
+              Discard
+            </button>
+          </ng-container>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div *ngIf="showDeleteModal" 
+       (click)="closeDeleteModal()"
+       class="fixed inset-0 z-50 bg-[#0a1120]/80 backdrop-blur-sm flex items-center justify-center p-4">
+    
+    <div (click)="$event.stopPropagation()"
+         class="bg-[#001830] border border-red-500/30 rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative overflow-hidden">
+      
+      <div class="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-4 text-red-400 mx-auto">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      </div>
+
+      <div class="text-center mb-6">
+        <h3 class="text-lg font-bold text-white uppercase tracking-wider">Confirm Deletion</h3>
+        <p class="text-xs font-mono text-gray-300 mt-2 leading-relaxed break-words">
+          Are you sure you want to remove <span class="text-white font-bold">"{{ product?.name }}"</span>? This action cannot be undone.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 pt-4 border-t border-white/10">
+        <button 
+          type="button"
+          (click)="closeDeleteModal()" 
+          [disabled]="isDeleting"
+          class="w-full text-xs font-mono uppercase tracking-wider text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 py-3 rounded-lg transition border border-white/10 cursor-pointer disabled:opacity-50">
+          Cancel
+        </button>
+
+        <button 
+          type="button"
+          (click)="confirmDelete()" 
+          [disabled]="isDeleting"
+          class="w-full text-xs font-mono uppercase tracking-wider text-white bg-red-600 hover:bg-red-500 py-3 rounded-lg transition shadow-lg shadow-red-900/30 font-bold cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2">
+          <span *ngIf="isDeleting" class="animate-spin text-xs">⏳</span>
+          {{ isDeleting ? 'Deleting...' : 'Confirm' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Fullscreen Image Viewer Modal -->
+  <div 
+    *ngIf="isFullViewOpen" 
+    (click)="closeFullImageView()"
+    class="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4 sm:p-8">
+    
+    <div class="absolute top-6 right-6 flex items-center gap-3 z-10">
+      <button 
+        type="button"
+        (click)="downloadCurrentImage(); $event.stopPropagation()" 
+        title="Download Image"
+        class="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-3 rounded-full cursor-pointer transition-colors flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+      </button>
+
+      <button 
+        type="button"
+        (click)="closeFullImageView()" 
+        class="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-3 rounded-full cursor-pointer transition-colors">
+        ✕
+      </button>
+    </div>
+
+    <div class="relative max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center" (click)="$event.stopPropagation()">
+      <img 
+        [src]="currentImage" 
+        [alt]="product?.name || 'Product Image'" 
+        class="max-w-full max-h-[85vh] object-contain rounded-2xl select-none" />
+
+      <button 
+        type="button"
+        *ngIf="imagePreviews.length > 1"
+        (click)="prevImage(); $event.stopPropagation()" 
+        class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-2xl cursor-pointer">
+        &#8249;
+      </button>
+
+      <button 
+        type="button"
+        *ngIf="imagePreviews.length > 1"
+        (click)="nextImage(); $event.stopPropagation()" 
+        class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-2xl cursor-pointer">
+        &#8250;
+      </button>
+    </div>
+  </div>
+</div>

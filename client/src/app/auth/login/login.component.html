@@ -1,0 +1,116 @@
+<div class="min-h-screen bg-[#0a1120] flex items-center justify-center p-6 antialiased font-sans">
+  
+  <!-- Main Card Container -->
+  <div class="w-full max-w-5xl bg-white border border-[#001830]/10 rounded-2xl shadow-[0_20px_50px_rgba(0,24,48,0.15)] overflow-hidden">
+
+    <div class="grid md:grid-cols-3">
+
+      <!-- ================= LEFT COLUMN (HERO SIDEBAR) ================= -->
+      <div class="bg-[#001830] p-10 flex flex-col items-center justify-between text-center min-h-[450px]">
+        
+        <div class="flex flex-col items-center w-full my-auto">
+          <!-- Logo / Platform Minimalist Identifier -->
+          <div class="w-16 h-16 rounded-full border border-white/20 flex items-center justify-center mb-6 bg-white/5">
+            <span class="text-white text-xl font-black font-mono tracking-tighter">01E</span>
+          </div>
+
+          <h1 class="text-3xl font-black text-white tracking-tight uppercase">
+            Welcome Back
+          </h1>
+
+          <div class="w-12 h-[2px] bg-white/30 my-4"></div>
+
+          <p class="text-sm text-white/70 max-w-[220px] leading-relaxed">
+            Access your secure gateway environment to resume buying or selling management.
+          </p>
+        </div>
+
+        <!-- System Status Indicator at Bottom -->
+        <p class="text-xs text-white/30 tracking-wider uppercase font-mono">
+          Authorized Terminal Only
+        </p>
+      </div>
+
+      <!-- ================= RIGHT COLUMN (LOGIN FORM) ================= -->
+      <div class="md:col-span-2 p-10 flex flex-col justify-between bg-white">
+        
+        <form [formGroup]="form" (ngSubmit)="login()" class="space-y-8 my-auto">
+          
+          <div>
+            <!-- Header Bar -->
+            <div class="flex justify-between items-center pb-6 mb-8 border-b-2 border-[#001830]">
+              <h2 class="text-2xl font-black text-[#001830] tracking-tight uppercase">
+                Account Login
+              </h2>
+              <span class="bg-[#001830] text-white text-[10px] font-mono uppercase tracking-widest px-3 py-1 font-bold">
+                Identity Verification
+              </span>
+            </div>
+
+            <!-- Fields Configuration Grid -->
+            <div class="grid grid-cols-1 gap-px bg-[#001830]/10 border border-[#001830]/10 rounded-xl overflow-hidden shadow-inner">
+              
+              <!-- Email Field -->
+              <div class="bg-white p-5 transition-colors focus-within:bg-gray-50/50">
+                <label class="block text-[11px] font-bold tracking-widest uppercase text-gray-400 mb-1">
+                  Email Address
+                </label>
+                <input type="email" formControlName="email" placeholder="name@domain.com"
+                  class="w-full text-base font-semibold text-[#001830] bg-transparent border-b border-[#001830]/20 py-1 focus:outline-none focus:border-[#001830] transition-colors tracking-tight placeholder-gray-300">
+                
+                <!-- Front-end Validation Alerts -->
+                <div *ngIf="form.get('email')?.touched && form.get('email')?.invalid" class="text-red-600 mt-1.5 font-mono text-[10px] uppercase tracking-wide">
+                  <span *ngIf="form.get('email')?.hasError('required')">Email address is required</span>
+                  <span *ngIf="form.get('email')?.hasError('email')">Invalid email address structure</span>
+                </div>
+              </div>
+
+              <!-- Password Field -->
+              <div class="bg-white p-5 transition-colors focus-within:bg-gray-50/50">
+                <label class="block text-[11px] font-bold tracking-widest uppercase text-gray-400 mb-1">
+                  Secure Password
+                </label>
+                <input type="password" formControlName="password" placeholder="••••••••"
+                  class="w-full text-base font-semibold text-[#001830] bg-transparent border-b border-[#001830]/20 py-1 focus:outline-none focus:border-[#001830] transition-colors tracking-tight placeholder-gray-300">
+                
+                <!-- Front-end Validation Alerts -->
+                <div *ngIf="form.get('password')?.touched && form.get('password')?.invalid" class="text-red-600 mt-1.5 font-mono text-[10px] uppercase tracking-wide">
+                  <span *ngIf="form.get('password')?.hasError('required')">Password input is required</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Error Feedback System -->
+          <div *ngIf="error" class="rounded-lg bg-red-50 border-l-4 border-red-600 text-red-900 px-4 py-3 text-xs font-semibold tracking-wide uppercase font-mono">
+            Authentication Failure: {{ error }}
+          </div>
+
+          <!-- ================= ACTION BOTTOM BAR ================= -->
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-6 pt-6 border-t border-[#001830]/10">
+            
+            <div class="text-center sm:text-left">
+              <span class="text-sm text-gray-400 font-medium">New to 01E-COM?</span>
+              <a [routerLink]="'/register'" class="ml-1.5 text-sm font-bold text-[#001830] hover:underline uppercase tracking-wider">
+                Register
+              </a>
+            </div>
+
+            <!-- Disabled while loading or if front-end inputs do not meet control requirements -->
+            <button type="submit" [disabled]="loading || form.invalid"
+              class="w-full sm:w-auto bg-[#001830] hover:bg-[#001830]/90 text-white font-bold text-xs uppercase tracking-widest py-4 px-10 rounded-lg transition shadow-md disabled:opacity-40 disabled:cursor-not-allowed">
+              {{ loading ? 'Opening Session...' : 'Authenticate' }}
+            </button>
+
+          </div>
+
+        </form>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>

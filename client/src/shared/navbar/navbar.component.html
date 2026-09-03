@@ -1,0 +1,79 @@
+<!-- MASTER APPLICATION NAVIGATION HEADER -->
+<header class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#001830]/10 px-6 lg:px-12 py-3.5 flex items-center justify-between shadow-xs">
+  
+  <!-- Left Side: Platform Logo & Main Navigation Links -->
+  <div class="flex items-center gap-8">
+    
+    <!-- Platform Logo -->
+    <a routerLink="/" class="flex items-center gap-3 group">
+      <div class="w-10 h-10 rounded-xl bg-[#001830] flex items-center justify-center shadow-md group-hover:bg-[#001830]/90 transition-colors">
+        <span class="text-white text-xs font-black font-mono tracking-tighter">01E</span>
+      </div>
+      <div class="hidden sm:flex flex-col">
+        <span class="text-sm font-black text-[#001830] tracking-tight uppercase leading-none">01E-COM</span>
+        <span class="text-[9px] font-mono font-bold tracking-widest text-gray-400 uppercase mt-0.5">Artisan Registry</span>
+      </div>
+    </a>
+
+    <!-- Navigation Routes -->
+    <nav class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-400">
+      <a routerLink="/" 
+         routerLinkActive="text-[#001830] bg-[#001830]/5 border-[#001830]"
+         [routerLinkActiveOptions]="{exact: true}"
+         class="px-3.5 py-2 rounded-lg border border-transparent hover:text-[#001830] transition-all">
+        Catalog
+      </a>
+      <a routerLink="/orders"
+         routerLinkActive="text-[#001830] bg-[#001830]/5 border-[#001830]"
+         class="px-3.5 py-2 rounded-lg border border-transparent hover:text-[#001830] transition-all">
+        My Orders
+      </a>
+    </nav>
+  </div>
+
+  <!-- Right Side: User Profile & Actions -->
+  <div class="flex items-center gap-4">
+
+    <!-- Shopping Cart Button -->
+    <a routerLink="/cart" 
+       routerLinkActive="border-[#001830] bg-[#001830]/5 text-[#001830]"
+       title="View Shopping Cart"
+       class="relative flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#001830]/15 text-[#001830] hover:bg-[#001830] hover:text-white transition-all text-xs font-mono font-bold uppercase tracking-wider group shadow-xs">
+      <svg class="w-4 h-4 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+      </svg>
+      <span>Cart</span>
+    </a>
+    
+    <!-- System Access Status Pill -->
+    <span class="hidden md:inline-block bg-[#001830]/5 text-[#001830] text-[10px] font-mono uppercase tracking-widest px-3 py-1.5 font-bold rounded-md border border-[#001830]/10">
+      Verified: {{ username }}
+    </span>
+
+    <!-- Profile Avatar Container -->
+    <div [routerLink]="['/profile']" 
+         title="View Profile"
+         class="w-9 h-9 rounded-full bg-gray-100 border border-[#001830]/20 overflow-hidden cursor-pointer hover:border-[#001830] transition-colors flex items-center justify-center shadow-xs">
+      
+      <!-- Backend User Image -->
+      <img *ngIf="avatarUrl" 
+           [src]="avatarUrl" 
+           [alt]="username" 
+           class="w-full h-full object-cover">
+
+      <!-- Fallback First Letter -->
+      <span *ngIf="!avatarUrl" class="text-xs font-mono font-bold text-[#001830] uppercase">
+        {{ username.charAt(0) }}
+      </span>
+
+    </div>
+
+    <!-- Exit / Sign Out -->
+    <button (click)="logout()" 
+            title="Sign Out"
+            class="text-[10px] font-mono font-bold uppercase tracking-widest text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-md transition-colors">
+      Exit
+    </button>
+
+  </div>
+</header>

@@ -1,0 +1,47 @@
+# --- Modern UI & Blue Ocean Suite ---
+blueocean:latest
+pipeline-graph-view:latest
+
+# --- Modern Themes, Design System & Icons ---
+theme-manager:latest
+dark-theme:latest
+material-theme:latest
+ionicons-api:latest
+font-awesome-api:latest
+bootstrap5-api:latest
+echarts-api:latest
+
+# --- Enhanced Build Logs & Console UI ---
+timestamper:latest
+ansicolor:latest
+
+# --- Core Pipeline & UI Extensions ---
+workflow-aggregator:latest
+pipeline-stage-view:latest
+pipeline-graph-analysis:latest
+dashboard-view:latest
+
+# --- GitHub Integration ---
+github:latest
+github-branch-source:latest
+git:latest
+
+# --- Code Quality & Static Analysis ---
+sonar:latest
+warnings-ng:latest
+
+# --- Test & Code Coverage UI Reports ---
+junit:latest
+jacoco:latest
+test-results-analyzer:latest
+
+# --- Credentials & Security ---
+credentials-binding:latest
+plain-credentials:latest
+
+# --- Build Tools & Utilities ---
+maven-plugin:latest
+docker-workflow:latest
+ws-cleanup:latest
+email-ext:latest
+mailer:latest

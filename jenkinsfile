@@ -1,0 +1,334 @@
+pipeline {
+    agent any
+
+    options {
+        ansiColor('xterm')
+        timestamps()
+        disableConcurrentBuilds()
+    }
+
+    environment {
+        APP_NAME        = '01e_com'
+        COMPOSE         = 'docker compose -p 01e_com'
+        APP_NETWORK     = '01e_com_default'
+        DEPLOY_DIR      = '/opt/01e_com'
+        EMAIL           = 'louhabali@gmail.com'
+        EMAIL2          = 'ismailichi29@gmail.com'
+        EMAIL3          = 'xxx@gmail.com'
+        SONAR_HOST_URL  = 'http://sonarqube:9000'
+        // JAVA_SERVICES   = 'gateway_service user_service product_service media_service cart_service'
+        JAVA_SERVICES   = 'gateway_service user_service product_service media_service cart_service order_service'
+        FRONTEND_PORT   = '8443'
+        GATEWAY_PORT    = '8089'
+        E2E_BASE_URL    = 'https://frontend:8443'
+    }
+
+    triggers {
+        githubPush()
+
+        // Weekly SonarQube health scan.
+        // Jenkins hashes the job name to avoid all jobs running simultaneously.
+        cron('H H * * 0')
+    }
+
+    stages {
+        stage('Checkout & Setup Env') {
+            steps {
+                checkout scm
+                withCredentials([file(credentialsId: '01e-com-env-file', variable: 'ENV_FILE')]) {
+                    sh 'cp "$ENV_FILE" .env'
+                }
+            }
+        }
+
+        stage('Parallel Automated Testing') {
+            parallel {
+                stage('Angular Frontend Tests') {
+                    agent {
+                        docker {
+                            image 'zenika/alpine-chrome:with-node'
+                            args '-u 0 -v /tmp/npm-cache:/root/.npm'
+                            reuseNode true
+                        }
+                    }
+                    steps {
+                        dir('client') {
+                            sh 'npm ci --legacy-peer-deps --no-audit --no-fund && npm run test:ci'
+                        }
+                    }
+                }
+
+                stage('Java Microservices Unit Tests') {
+                    steps {
+                        sh '''
+                            set -e
+                            for dir in ${JAVA_SERVICES}; do
+                                echo "==> Running unit tests for ${dir}"
+                                (cd "$dir" && chmod +x mvnw && ./mvnw clean test jacoco:report)
+                            done
+                        '''
+                    }
+                    post {
+                        always {
+                            junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+                            jacoco execPattern: '**/target/*.exec', classPattern: '**/target/classes'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('SonarQube Scanner Analysis') {
+            agent {
+                docker {
+                    image 'sonarsource/sonar-scanner-cli:latest'
+                    args '--entrypoint="" --network ci-plateform_ci_net'
+                    reuseNode true
+                }
+            }
+            //
+            steps {
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    withSonarQubeEnv('SonarQube') {
+                        sh '''
+                            sonar-scanner \
+                              -Dsonar.host.url=${SONAR_HOST_URL} \
+                              -Dsonar.token=${SONAR_TOKEN} \
+                              -Dsonar.projectKey=${APP_NAME} \
+                              -Dsonar.sources=gateway_service/src/main/java,user_service/src/main/java,product_service/src/main/java,media_service/src/main/java,cart_service/src/main/java,order_service/src/main/java,client/src \
+                              -Dsonar.tests=gateway_service/src/test/java,user_service/src/test/java,product_service/src/test/java,media_service/src/test/java,cart_service/src/test/java,order_service/src/test/java \
+                              -Dsonar.java.binaries=gateway_service/target/classes,user_service/target/classes,product_service/target/classes,media_service/target/classes,cart_service/target/classes,order_service/target/classes \
+                              -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \
+                              -Dsonar.javascript.lcov.reportPaths=client/coverage/lcov.info \
+                              -Dsonar.coverage.exclusions=**/*Application.java,**/config/**,**/dto/**,**/entity/**,**/entities/**,**/event/**,**/model/**,client/src/main.ts,client/src/environments/** \
+                              -Dsonar.exclusions=**/node_modules/**,**/target/**,**/*.spec.ts,**/config/**,**/event/**,**/model/**,**/dto/**,**/entity/**
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Quality Gate Check') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    script {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "Pipeline aborted due to SonarQube quality gate failure: ${qg.status}"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Build Artifacts & Container Images') {
+            environment {
+                    DOCKER_BUILDKIT = '1'
+                    COMPOSE_DOCKER_CLI_BUILD = '1'
+            }
+            steps {
+                echo 'Building production JAR files concurrently...'
+
+                sh '''
+                    set -e
+                    for dir in ${JAVA_SERVICES}; do
+                        echo "==> Packaging ${dir}"
+                        (cd "$dir" && ./mvnw package -DskipTests -T 1C) &
+                    done
+                    wait
+                '''
+
+                echo 'Building Docker container images...'
+                sh '${COMPOSE} build'
+            }
+        }
+
+        stage('Start app stack for E2E') {
+            steps {
+                sh '''
+                    set -e
+                    echo "Bringing the application stack up for E2E testing..."
+                    ${COMPOSE} up -d --remove-orphans
+                    ${COMPOSE} ps
+                '''
+            }
+        }
+
+        stage('E2E readiness smoke check') {
+            // Start the compose stack and wait for frontend + gateway
+            // to become reachable before running browser E2E tests.
+            steps {
+                echo "Running the services stack from ${DEPLOY_DIR}..."
+
+                sh '''
+        set -e
+
+        mkdir -p "${DEPLOY_DIR}"
+
+        cp docker-compose.yml "${DEPLOY_DIR}/"
+        cp .env "${DEPLOY_DIR}/.env"
+
+        cd "${DEPLOY_DIR}"
+
+        ${COMPOSE} up -d --remove-orphans
+        ${COMPOSE} ps
+
+        echo "Waiting for the app to become reachable for E2E tests..."
+
+        for i in $(seq 1 40); do
+            echo "Readiness check ${i}/40..."
+
+            frontend_status=$(docker run --rm --network "${APP_NETWORK}" \
+                curlimages/curl:8.10.1 -k -sS -o /dev/null -w '%{http_code}' \
+                --max-time 10 "${E2E_BASE_URL}" || true)
+            gateway_status=$(docker run --rm --network "${APP_NETWORK}" \
+                curlimages/curl:8.10.1 -k -sS -o /dev/null -w '%{http_code}' \
+                --max-time 10 "https://gateway:${GATEWAY_PORT}" || true)
+
+            echo "Frontend HTTP status: ${frontend_status}"
+            echo "Gateway HTTP status: ${gateway_status}"
+
+            case "${frontend_status}" in
+                2*) frontend_ready=true ;;
+                *) frontend_ready=false ;;
+            esac
+
+            case "${gateway_status}" in
+                2*|3*|4*) gateway_ready=true ;;
+                *) gateway_ready=false ;;
+            esac
+
+            if [ "${frontend_ready}" = true ] && [ "${gateway_ready}" = true ]; then
+                echo "Frontend and gateway are reachable."
+                echo "E2E environment is ready."
+
+                exit 0
+            fi
+
+            sleep 5
+        done
+
+        echo "Timed out waiting for frontend/gateway to respond."
+
+        echo "Final Docker Compose status:"
+        ${COMPOSE} ps
+
+        exit 1
+    '''
+            }
+        }
+
+        stage('Browser E2E tests') {
+            agent {
+                docker {
+                    image 'mcr.microsoft.com/playwright:v1.54.1-jammy'
+                    args '-u root --entrypoint="" --network 01e_com_default'
+                    reuseNode true
+                }
+            }
+            environment {
+                PLAYWRIGHT_BASE_URL = 'https://frontend:8443'
+            }
+            steps {
+                sh '''
+                    set -e
+                    cd client
+                    npm ci --legacy-peer-deps --no-audit --no-fund
+                    npx playwright install --with-deps
+                    PLAYWRIGHT_BASE_URL="${PLAYWRIGHT_BASE_URL}" npx playwright test --config=playwright.config.ts --reporter=line
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts allowEmptyArchive: true, artifacts: 'client/playwright-report/**,client/test-results/**', fingerprint: true
+                }
+            }
+        }
+        stage('Stop application stack') {
+            steps {
+                sh '''
+                ${COMPOSE} down --remove-orphans
+                ${COMPOSE} ps
+                echo "E2E tests finished. Stopping the application stack to pass to Deployment"
+            '''
+            }
+        }
+        stage('Debug Env') {
+            steps {
+                sh 'echo "BRANCH_NAME: ${BRANCH_NAME}"'
+                sh 'echo "GIT_BRANCH: ${GIT_BRANCH}"'
+            }
+        }
+
+        stage('Deploy Application') {
+            when {
+                allOf {
+                    anyOf {
+                        branch 'main'
+                        environment name: 'CHANGE_TARGET', value: 'main'
+                        expression { env.GIT_BRANCH?.endsWith('main') }
+                    }
+
+                    // Never deploy from a scheduled SonarQube scan.
+                    not {
+                        triggeredBy 'TimerTrigger'
+                    }
+                }
+            }
+
+            steps {
+                echo "Deploying service stack to ${DEPLOY_DIR}..."
+                sh '''
+                    mkdir -p ${DEPLOY_DIR}
+                    cp docker-compose.yml ${DEPLOY_DIR}/
+                    cp .env ${DEPLOY_DIR}/.env
+
+                    cd ${DEPLOY_DIR}
+                    ${COMPOSE} up -d --remove-orphans
+                    ${COMPOSE} ps
+                '''
+            }
+        }
+    }
+    // test
+    //trigger
+    post {
+        always {
+            sh 'rm -f .env'
+        }
+        success {
+            script {
+                def isTimerTrigger = currentBuild.buildCauses.any { cause ->
+                    cause._class.contains('TimerTrigger')
+                }
+
+                if (isTimerTrigger) {
+                    emailext(
+                        to: "${env.EMAIL }, ${env.EMAIL2}",
+                        subject: "🔎 SONARQUBE SCAN PASSED: ${env.JOB_NAME} [Build #${env.BUILD_NUMBER}]",
+                        body: "Scheduled SonarQube health scan completed successfully and the quality gate passed.\n\nLogs: ${env.BUILD_URL}"
+                    )
+                } else if (env.BRANCH_NAME == 'main' || env.GIT_BRANCH == 'origin/main') {
+                    emailext(
+                        to: "${env.EMAIL }, ${env.EMAIL2}",
+                        subject: "✅ SUCCESS & DEPLOYED: ${env.JOB_NAME} [Build #${env.BUILD_NUMBER}]",
+                        body: "Pipeline passed, quality gates cleared, and changes successfully deployed to ${env.DEPLOY_DIR}.\n\nLogs: ${env.BUILD_URL}"
+                    )
+                } else {
+                    emailext(
+                        to: "${env.EMAIL }, ${env.EMAIL2}",
+                        subject: "✅ CI PASSED: ${env.JOB_NAME} [Build #${env.BUILD_NUMBER}]",
+                        body: "Tests and SonarQube quality gate passed successfully.\n\nLogs: ${env.BUILD_URL}"
+                    )
+                }
+            }
+        }
+        failure {
+            emailext(
+                to: "${env.EMAIL }, ${env.EMAIL2}",
+                subject: "🚨 FAILURE: ${env.JOB_NAME} [Build #${env.BUILD_NUMBER}]",
+                body: "Pipeline execution failed. Production environment was not modified.\n\nLogs: ${env.BUILD_URL}"
+            )
+        }
+    }
+}

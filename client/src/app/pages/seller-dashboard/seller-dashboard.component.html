@@ -1,0 +1,102 @@
+<div class="min-h-screen bg-[#0a1120] p-6 sm:p-10 antialiased font-sans">
+  
+  <div class="max-w-6xl mx-auto space-y-8">
+    
+    <!-- Top Bar Navigation -->
+    <div class="flex justify-between items-center border-b border-white/10 pb-6">
+      <div>
+        <h1 class="text-3xl font-black text-white tracking-tight uppercase">Seller Analytics</h1>
+        <p class="text-xs text-white/50 tracking-wider font-mono mt-1">Real-time revenue & sales telemetry</p>
+      </div>
+      
+      <a routerLink="/profile" 
+         class="border border-white/20 hover:border-white text-white/80 hover:text-white text-xs font-mono font-bold uppercase tracking-widest px-4 py-2.5 rounded-lg transition">
+        ← Back to Profile
+      </a>
+    </div>
+
+    <!-- Spinner State -->
+    <div *ngIf="loading" class="text-center py-20 animate-pulse text-white/60 font-mono text-sm">
+      [ FETCHING REVENUE TELEMETRY... ]
+    </div>
+
+    <div *ngIf="!loading" class="space-y-8">
+      
+      <!-- Key Metric Cards -->
+      <div class="grid sm:grid-cols-3 gap-6">
+        
+        <!-- Total Revenue -->
+        <div class="bg-[#001830] border border-white/10 rounded-2xl p-6 shadow-xl">
+          <span class="text-[11px] font-mono uppercase tracking-widest text-white/50 block mb-2">Total Revenue Gained</span>
+          <div class="text-3xl font-black text-emerald-400 tracking-tight">
+            ${{ analytics.totalRevenue | number:'1.2-2' }}
+          </div>
+        </div>
+
+        <!-- Total Units Sold -->
+        <div class="bg-[#001830] border border-white/10 rounded-2xl p-6 shadow-xl">
+          <span class="text-[11px] font-mono uppercase tracking-widest text-white/50 block mb-2">Total Units Sold</span>
+          <div class="text-3xl font-black text-white tracking-tight">
+            {{ analytics.totalUnitsSold }} <span class="text-xs text-white/40 font-normal">items</span>
+          </div>
+        </div>
+
+        <!-- Total Orders -->
+        <div class="bg-[#001830] border border-white/10 rounded-2xl p-6 shadow-xl">
+          <span class="text-[11px] font-mono uppercase tracking-widest text-white/50 block mb-2">Completed Orders</span>
+          <div class="text-3xl font-black text-white tracking-tight">
+            {{ analytics.totalOrders }}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Best-Selling Products Table -->
+      <div class="bg-white rounded-2xl border border-[#001830]/10 overflow-hidden shadow-2xl p-6">
+        <h2 class="text-lg font-black text-[#001830] uppercase tracking-wider mb-6 pb-4 border-b border-[#001830]/10">
+          Best-Selling Inventory
+        </h2>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left" aria-label="Best-selling inventory table showing product name, units sold, and revenue generated">
+            <thead>
+              <tr class="border-b border-[#001830]/10 text-[10px] font-mono uppercase tracking-widest text-gray-400">
+                <th class="pb-3">Product Name</th>
+                <th class="pb-3 text-center">Units Sold</th>
+                <th class="pb-3 text-right">Revenue Generated</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 text-sm font-semibold text-[#001830]">
+              <tr *ngFor="let item of analytics.topProducts" class="hover:bg-gray-50/80 transition-colors">
+                <td class="py-4">{{ item.name }}</td>
+                <td class="py-4 text-center font-mono">{{ item.unitsSold }}</td>
+                <td class="py-4 text-right font-mono text-emerald-700">${{ item.revenue | number:'1.2-2' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Units Sold Chart -->
+      <div class="bg-white rounded-2xl border border-[#001830]/10 shadow-2xl p-6">
+        <h2 class="text-lg font-black text-[#001830] uppercase tracking-wider mb-6 pb-4 border-b border-[#001830]/10">Units Sold by Product</h2>
+        <div *ngIf="analytics.topProducts.length > 0" class="space-y-4">
+          <div *ngFor="let item of analytics.topProducts">
+            <div class="flex justify-between text-xs font-bold text-[#001830] mb-1.5">
+              <span class="truncate pr-4">{{ item.name }}</span>
+              <span class="font-mono text-gray-500 shrink-0">{{ item.unitsSold }} units</span>
+            </div>
+            <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
+              <div class="h-full bg-emerald-500 rounded-full transition-all duration-700"
+                [style.width.%]="(item.unitsSold / analytics.topProducts[0].unitsSold) * 100"></div>
+            </div>
+          </div>
+        </div>
+        <p *ngIf="analytics.topProducts.length === 0" class="text-sm text-gray-400">No sales data available yet.</p>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
