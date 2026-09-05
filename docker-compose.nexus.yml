@@ -1,8 +1,36 @@
 services:
+
+  postgres-nexus:
+    image: postgres:16
+    container_name: postgres-nexus
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: nexus_password
+      POSTGRES_DB: nexus
+
+    volumes:
+      - postgres-nexus-data:/var/lib/postgresql/data
+
+    networks:
+      - nexus-network
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexus -d nexus"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+
   nexus:
     image: sonatype/nexus3:3.96.0
     container_name: nexus
     restart: unless-stopped
+
+    depends_on:
+      postgres-nexus:
+        condition: service_healthy
 
     ports:
       - "8081:8081"
@@ -14,5 +42,18 @@ services:
     environment:
       INSTALL4J_ADD_VM_PARAMS: "-Xms1200m -Xmx1200m -XX:MaxDirectMemorySize=2g"
 
+      NEXUS_DATASTORE_NEXUS_JDBCURL: "jdbc:postgresql://postgres-nexus:5432/nexus"
+      NEXUS_DATASTORE_NEXUS_USERNAME: "nexus"
+      NEXUS_DATASTORE_NEXUS_PASSWORD: "nexus_password"
+
+    networks:
+      - nexus-network
+
+
 volumes:
   nexus-data:
+  postgres-nexus-data:
+
+
+networks:
+  nexus-network:
