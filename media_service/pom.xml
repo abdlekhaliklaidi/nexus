@@ -9,7 +9,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.7.18</version>
+        <version>3.2.5</version>
         <relativePath/>
     </parent>
 
@@ -19,7 +19,7 @@
     <name>media_service</name>
 
     <properties>
-        <java.version>11</java.version>
+        <java.version>21</java.version>
         <lombok.version>1.18.38</lombok.version>
     </properties>
 
@@ -92,6 +92,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
                 <configuration>
+                    <!-- <release>25</release> -->
                     <release>${java.version}</release>
                     <annotationProcessorPaths>
                         <path>

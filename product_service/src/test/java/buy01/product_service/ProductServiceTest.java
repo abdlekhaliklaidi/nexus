@@ -186,7 +186,7 @@ class ProductServiceTest {
                                 ResponseStatusException.class,
                                 () -> service.decrementStock("1", 6));
 
-                assertThat(exception.getRawStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+                assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
                 assertThat(exception.getReason()).contains("Only 5 item");
         }
 
@@ -214,7 +214,7 @@ class ProductServiceTest {
                                 ResponseStatusException.class,
                                 () -> service.getProduct("missing"));
 
-                assertThat(exception.getRawStatusCode()).isEqualTo(HttpStatus.NOT_FOUND.value());
+                assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         }
 
         @Test
@@ -252,7 +252,7 @@ class ProductServiceTest {
                                                 "another-user",
                                                 "SELLER"));
 
-                assertThat(exception.getRawStatusCode()).isEqualTo(HttpStatus.FORBIDDEN.value());
+                assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         }
 
         @Test
@@ -269,7 +269,7 @@ class ProductServiceTest {
                                                 null,
                                                 "SELLER"));
 
-                assertThat(exception.getRawStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
+                assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         }
 
         @Test
@@ -286,7 +286,7 @@ class ProductServiceTest {
                                                 "seller-1",
                                                 "SELLER"));
 
-                assertThat(exception.getRawStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+                assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         }
 
         @Test
@@ -303,7 +303,7 @@ class ProductServiceTest {
                                                 "seller-1",
                                                 "SELLER"));
 
-                assertThat(exception.getRawStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+                assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         }
 
         @Test
@@ -320,7 +320,7 @@ class ProductServiceTest {
                                                 "seller-1",
                                                 "SELLER"));
 
-                assertThat(exception.getRawStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+                assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         }
 
         @Test
@@ -337,7 +337,7 @@ class ProductServiceTest {
                                                 "seller-1",
                                                 "SELLER"));
 
-                assertThat(exception.getRawStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+                assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         }
 
         @Test
@@ -354,7 +354,7 @@ class ProductServiceTest {
                                                 "seller-1",
                                                 "SELLER"));
 
-                assertThat(exception.getRawStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+                assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         }
 
         @Test
@@ -376,7 +376,7 @@ class ProductServiceTest {
                                                 "seller-1",
                                                 "SELLER"));
 
-                assertThat(exception.getRawStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+                assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         }
 
         @Test
@@ -399,7 +399,7 @@ class ProductServiceTest {
                                                 "seller-1",
                                                 "SELLER"));
 
-                assertThat(exception.getRawStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+                assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         }
 
         @Test
@@ -422,7 +422,7 @@ class ProductServiceTest {
                                                 "seller-1",
                                                 "SELLER"));
 
-                assertThat(exception.getRawStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+                assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         }
 
         @Test
@@ -443,7 +443,7 @@ class ProductServiceTest {
                                                 "seller-1",
                                                 "SELLER"));
 
-                assertThat(exception.getRawStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+                assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         }
 
         @Test

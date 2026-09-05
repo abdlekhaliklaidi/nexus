@@ -2,8 +2,8 @@ package buy01.user_service.dto;
 
 
 import buy01.user_service.model.Role;
-import javax.validation.constraints.Email;
-import javax.validation.constraints.Pattern;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

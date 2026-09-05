@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.NoHandlerFoundException;
-// import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -60,10 +60,10 @@ public class GlobalExceptionHandler {
     }
 
     // Handle resource not found exceptions 404
-    // @ExceptionHandler(NoResourceFoundException.class)
-    // public ResponseEntity<String> handleResourceNotFound(NoResourceFoundException ex) {
-    //     return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Resource not found.");
-    // }
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<String> handleResourceNotFound(NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Resource not found.");
+    }
 
     // Handle route not found exceptions 404 (for invalid endpoints)
     @ExceptionHandler(NoHandlerFoundException.class)
@@ -74,12 +74,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<Map<String, String>> handleResponseStatusException(ResponseStatusException ex) {
-    return ResponseEntity
-            .status(ex.getRawStatusCode())
-            .body(Map.of(
-                    "errorMessage",
-                    ex.getReason() != null ? ex.getReason() : "An error occurred"
-            ));
+        return ResponseEntity
+                .status(ex.getStatusCode())
+                .body(Map.of("errorMessage", ex.getReason() != null ? ex.getReason() : "An error occurred"));
     }
 
     @ExceptionHandler(TypeMismatchException.class)

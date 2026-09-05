@@ -53,7 +53,7 @@
 
 ## Backend
 
-- Java 21
+- Java 25
 - Spring Boot
 - Spring Security
 - Spring Cloud Gateway

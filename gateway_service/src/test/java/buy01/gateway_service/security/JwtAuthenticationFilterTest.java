@@ -17,6 +17,7 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.web.server.ServerWebExchange;
@@ -53,7 +54,7 @@ class JwtAuthenticationFilterTest {
         lenient().when(filterChain.filter(any(ServerWebExchange.class))).thenReturn(Mono.empty());
     }
 
-    private void logTestSummary(TestInfo testInfo, String endpoint, HttpMethod method, Object expectedStatus, HttpStatus status){
+    private void logTestSummary(TestInfo testInfo, String endpoint, HttpMethod method, Object expectedStatus, HttpStatusCode status) {
         String actualStatusStr = (status != null) ? status.toString() : "PASSED THROUGH (No Response)";
         
         System.out.printf("%n==================================================%n");
@@ -112,7 +113,7 @@ class JwtAuthenticationFilterTest {
 
         StepVerifier.create(result).verifyComplete();
         
-        HttpStatus actualStatus = exchange.getResponse().getStatusCode();
+        HttpStatusCode actualStatus = exchange.getResponse().getStatusCode();
         logTestSummary(testInfo, "/api/products", HttpMethod.POST, HttpStatus.UNAUTHORIZED, actualStatus);
 
         assertThat(actualStatus)
@@ -137,7 +138,7 @@ class JwtAuthenticationFilterTest {
 
         StepVerifier.create(result).verifyComplete();
 
-        HttpStatus actualStatus = exchange.getResponse().getStatusCode();
+        HttpStatusCode actualStatus = exchange.getResponse().getStatusCode();
         logTestSummary(testInfo, "/api/products", HttpMethod.POST, HttpStatus.UNAUTHORIZED, actualStatus);
 
         assertThat(actualStatus)
@@ -168,7 +169,7 @@ class JwtAuthenticationFilterTest {
 
         StepVerifier.create(result).verifyComplete();
 
-        HttpStatus actualStatus = exchange.getResponse().getStatusCode();
+        HttpStatusCode actualStatus = exchange.getResponse().getStatusCode();
         logTestSummary(testInfo, "/api/products", HttpMethod.POST, HttpStatus.UNAUTHORIZED + " (Blacklisted User)", actualStatus);
 
         assertThat(actualStatus)
@@ -201,7 +202,7 @@ class JwtAuthenticationFilterTest {
 
         StepVerifier.create(result).verifyComplete();
 
-        HttpStatus actualStatus = exchange.getResponse().getStatusCode();
+        HttpStatusCode actualStatus = exchange.getResponse().getStatusCode();
         logTestSummary(testInfo, "/api/products", HttpMethod.POST, HttpStatus.UNAUTHORIZED + " (User Not Found)", actualStatus);
 
         assertThat(actualStatus)
