@@ -4,7 +4,7 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
-    container_name: angular-client
+    # container_name: angular-client
     ports:
       - "8088:8080"
       - "8443:8443"
@@ -18,7 +18,7 @@ services:
     build: 
       context: ./gateway_service
       dockerfile: dockerfile
-    container_name: gateway-service
+    # container_name: gateway-service
     ports:
       - "8089:8089"
     depends_on:
@@ -41,7 +41,7 @@ services:
     build: 
       context: ./user_service
       dockerfile: dockerfile
-    container_name: user-service
+    # container_name: user-service
     depends_on:
       - mongodb
       - redis
@@ -58,7 +58,7 @@ services:
     build: 
       context: ./product_service
       dockerfile: dockerfile
-    container_name: product-service
+    # container_name: product-service
     depends_on:
       - mongodb
       - redis
@@ -75,7 +75,7 @@ services:
     build: 
       context: ./media_service
       dockerfile: dockerfile
-    container_name: media-service
+    # container_name: media-service
     expose:
       - "8083"
     volumes:
@@ -86,7 +86,7 @@ services:
     build:
       context: ./cart_service
       dockerfile: dockerfile
-    container_name: cart-service
+    # container_name: cart-service
     ports:
       - "8085:8085"
     environment:
@@ -104,7 +104,7 @@ services:
     build:
       context: ./order_service
       dockerfile: dockerfile
-    container_name: order-service
+    # container_name: order-service
     ports:
       - "8084:8084"
     environment:
@@ -116,7 +116,7 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:7.6.1
-    container_name: kafka
+    # container_name: kafka
     ports:
       - "9092:9092"
     environment:
@@ -137,7 +137,7 @@ services:
 
   mongodb:
     image: mongo:7
-    container_name: mongodb
+    # container_name: mongodb
     ports:
       - "27017:27017"
     volumes:
@@ -145,7 +145,7 @@ services:
 
   redis:
     image: redis:7
-    container_name: redis
+    # container_name: redis
     ports:
       - "6379:6379"
     command: redis-server --notify-keyspace-events Ex
