@@ -169,11 +169,9 @@ pipeline {
         sh '''
             set -e
 
-            echo "Nexus URL: ${NEXUS_URL}"
+            echo "Checking Nexus at ${NEXUS_URL}"
 
             for i in $(seq 1 60); do
-                echo "Nexus readiness check ${i}/60..."
-
                 status=$(curl -sS \
                     -o /dev/null \
                     -w '%{http_code}' \
@@ -198,7 +196,6 @@ pipeline {
         '''
     }
 }
-
 
         stage('Publish Maven Artifacts to Nexus') {
     when {
