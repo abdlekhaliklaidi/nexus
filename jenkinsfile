@@ -164,25 +164,21 @@ pipeline {
     }
 
     steps {
-        echo "Starting Nexus Repository..."
+        echo "Checking Nexus Repository..."
 
         sh '''
             set -e
 
-            ${COMPOSE} up -d nexus
-
-            echo "Waiting for Nexus Repository to become ready..."
+            echo "Nexus URL: ${NEXUS_URL}"
 
             for i in $(seq 1 60); do
                 echo "Nexus readiness check ${i}/60..."
 
-                status=$(docker run --rm \
-                    --network ${APP_NAME}_default \
-                    curlimages/curl:8.10.1 \
-                    -sS -o /dev/null \
+                status=$(curl -sS \
+                    -o /dev/null \
                     -w '%{http_code}' \
                     --max-time 10 \
-                    http://${NEXUS_HOST}:${NEXUS_PORT}/service/rest/v1/status \
+                    "${NEXUS_URL}/service/rest/v1/status" \
                     || true)
 
                 echo "Nexus HTTP status: ${status}"
@@ -198,14 +194,11 @@ pipeline {
             done
 
             echo "Nexus Repository did not become ready."
-
-            ${COMPOSE} ps
-            ${COMPOSE} logs --tail=100 nexus
-
             exit 1
         '''
     }
 }
+
 
         stage('Publish Maven Artifacts to Nexus') {
     when {

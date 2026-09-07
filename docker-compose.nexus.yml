@@ -15,6 +15,7 @@ services:
 
     networks:
       - nexus-network
+      - ci-plateform_ci_net
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U nexus -d nexus"]
@@ -58,4 +59,6 @@ volumes:
 
 networks:
   nexus-network:
-  default:
+
+  ci-plateform_ci_net:
+    external: true
