@@ -48,6 +48,7 @@ services:
 
     networks:
       - nexus-network
+      - default
 
 
 volumes:
@@ -57,3 +58,4 @@ volumes:
 
 networks:
   nexus-network:
+  default:

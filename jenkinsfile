@@ -21,6 +21,10 @@ pipeline {
         FRONTEND_PORT   = '8443'
         GATEWAY_PORT    = '8089'
         E2E_BASE_URL    = 'https://frontend:8443'
+
+        NEXUS_HOST      = 'nexus'
+        NEXUS_PORT      = '8081'
+        NEXUS_URL       = 'http://nexus:8081'
     }
 
     triggers {
@@ -142,6 +146,108 @@ pipeline {
                 sh '${COMPOSE} build'
             }
         }
+        
+        // Nexus Repository Readiness
+        stage('Nexus Repository Readiness') {
+    when {
+        allOf {
+            anyOf {
+                branch 'main'
+                environment name: 'CHANGE_TARGET', value: 'main'
+                expression { env.GIT_BRANCH?.endsWith('main') }
+            }
+
+            not {
+                triggeredBy 'TimerTrigger'
+            }
+        }
+    }
+
+    steps {
+        echo "Starting Nexus Repository..."
+
+        sh '''
+            set -e
+
+            ${COMPOSE} up -d postgres-nexus nexus
+
+            echo "Waiting for Nexus Repository to become ready..."
+
+            for i in $(seq 1 60); do
+                echo "Nexus readiness check ${i}/60..."
+
+                status=$(docker run --rm \
+                    --network ${APP_NAME}_default \
+                    curlimages/curl:8.10.1 \
+                    -sS -o /dev/null \
+                    -w '%{http_code}' \
+                    --max-time 10 \
+                    http://${NEXUS_HOST}:${NEXUS_PORT}/service/rest/v1/status \
+                    || true)
+
+                echo "Nexus HTTP status: ${status}"
+
+                case "${status}" in
+                    2*)
+                        echo "Nexus Repository is ready."
+                        exit 0
+                        ;;
+                esac
+
+                sleep 5
+            done
+
+            echo "Nexus Repository did not become ready."
+
+            ${COMPOSE} ps
+            ${COMPOSE} logs --tail=100 nexus
+
+            exit 1
+        '''
+    }
+}
+
+        stage('Publish Maven Artifacts to Nexus') {
+    when {
+        allOf {
+            anyOf {
+                branch 'main'
+                environment name: 'CHANGE_TARGET', value: 'main'
+                expression { env.GIT_BRANCH?.endsWith('main') }
+            }
+
+            not {
+                triggeredBy 'TimerTrigger'
+            }
+        }
+    }
+
+    steps {
+        withCredentials([
+            usernamePassword(
+                credentialsId: 'nexus-maven-credentials',
+                usernameVariable: 'NEXUS_USERNAME',
+                passwordVariable: 'NEXUS_PASSWORD'
+            )
+        ]) {
+            sh '''
+                set -e
+
+                echo "Publishing Maven artifacts to Nexus..."
+
+                for dir in ${JAVA_SERVICES}; do
+                    echo "==> Deploying ${dir}"
+
+                    cd "$WORKSPACE/$dir"
+
+                    ./mvnw deploy -DskipTests \
+                        -Dnexus.username="${NEXUS_USERNAME}" \
+                        -Dnexus.password="${NEXUS_PASSWORD}"
+                done
+            '''
+        }
+    }
+}
 
         // stage('Start app stack for E2E') {
         //     steps {
@@ -296,39 +402,26 @@ pipeline {
         always {
             sh 'rm -f .env'
         }
-        success {
-            script {
-                def isTimerTrigger = currentBuild.buildCauses.any { cause ->
-                    cause._class.contains('TimerTrigger')
-                }
-
-                if (isTimerTrigger) {
-                    emailext(
-                        to: "${env.EMAIL }, ${env.EMAIL2}",
-                        subject: "🔎 SONARQUBE SCAN PASSED: ${env.JOB_NAME} [Build #${env.BUILD_NUMBER}]",
-                        body: "Scheduled SonarQube health scan completed successfully and the quality gate passed.\n\nLogs: ${env.BUILD_URL}"
-                    )
-                } else if (env.BRANCH_NAME == 'main' || env.GIT_BRANCH == 'origin/main') {
-                    emailext(
-                        to: "${env.EMAIL }, ${env.EMAIL2}",
-                        subject: "✅ SUCCESS & DEPLOYED: ${env.JOB_NAME} [Build #${env.BUILD_NUMBER}]",
-                        body: "Pipeline passed, quality gates cleared, and changes successfully deployed to ${env.DEPLOY_DIR}.\n\nLogs: ${env.BUILD_URL}"
-                    )
-                } else {
-                    emailext(
-                        to: "${env.EMAIL }, ${env.EMAIL2}",
-                        subject: "✅ CI PASSED: ${env.JOB_NAME} [Build #${env.BUILD_NUMBER}]",
-                        body: "Tests and SonarQube quality gate passed successfully.\n\nLogs: ${env.BUILD_URL}"
-                    )
-                }
+         success {
+            echo "🚀 CI/CD SUCCESS"
+             script {
+                mail(
+                    to: 'abdlekhaliklaidi@gmail.com',
+                    subject: "✅ SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: "Build passed.\nLogs: ${env.BUILD_URL}"
+                )
             }
         }
+
         failure {
-            emailext(
-                to: "${env.EMAIL }, ${env.EMAIL2}",
-                subject: "🚨 FAILURE: ${env.JOB_NAME} [Build #${env.BUILD_NUMBER}]",
-                body: "Pipeline execution failed. Production environment was not modified.\n\nLogs: ${env.BUILD_URL}"
-            )
+            echo "❌ CI/CD FAILED"
+             script {
+                mail(
+                    to: 'abdlekhaliklaidi@gmail.com',
+                    subject: "❌ FAILURE: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: "Build failed.\nLogs: ${env.BUILD_URL}"
+                )
+            }
         }
     }
 }
