@@ -169,7 +169,7 @@ pipeline {
         sh '''
             set -e
 
-            ${COMPOSE} up -d postgres-nexus nexus
+            ${COMPOSE} up -d nexus
 
             echo "Waiting for Nexus Repository to become ready..."
 
