@@ -197,12 +197,19 @@ pipeline {
 
                 for service in ${JAVA_SERVICES}; do
                     echo "Processing service: ${service}"
-                    
-                    # Derive variations to safely match built image tags (e.g., gateway_service vs gateway)
+
+                    # Derive variations to safely match built image tags
+                    # (e.g., gateway_service vs gateway vs gateway-service)
                     BASE_NAME=$(echo "${service}" | sed 's/_service//g')
+                    HYPHEN_NAME=$(echo "${service}" | sed 's/_/-/g')
+                    HYPHEN_BASE_NAME=$(echo "${BASE_NAME}" | sed 's/_/-/g')
 
                     IMAGE_ID=""
-                    for pattern in "${service}" "01e_com-${service}" "${BASE_NAME}" "01e_com-${BASE_NAME}"; do
+                    for pattern in \
+                        "${service}" "01e_com-${service}" \
+                        "${BASE_NAME}" "01e_com-${BASE_NAME}" \
+                        "${HYPHEN_NAME}" "01e_com-${HYPHEN_NAME}" \
+                        "${HYPHEN_BASE_NAME}" "01e_com-${HYPHEN_BASE_NAME}"; do
                         if [ -z "$IMAGE_ID" ]; then
                             IMAGE_ID=$(docker images -q "${pattern}" 2>/dev/null | head -n 1 || true)
                         fi
@@ -217,9 +224,9 @@ pipeline {
 
                     # Target name mapping for Nexus registry repository
                     TARGET_NAME="${service}"
-                    if [[ "${service}" == *"frontend"* ]]; then
-                        TARGET_NAME="frontend"
-                    fi
+                    case "${service}" in
+                        *frontend*) TARGET_NAME="frontend" ;;
+                    esac
 
                     TARGET_IMAGE="${PROXY_URL}/${TARGET_NAME}:${DOCKER_TAG}"
 
