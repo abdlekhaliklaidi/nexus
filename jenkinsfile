@@ -177,14 +177,12 @@ pipeline {
                 echo "==> Starting local socat proxy for Nexus HTTP"
                 echo "=========================================="
 
-                # Clean up any leftover proxy container and start a new one
                 docker rm -f nexus-proxy || true
                 docker run -d --name nexus-proxy --network ci-plateform_ci_net \
                     -p 5000:8082 \
                     alpine/socat \
                     TCP-LISTEN:8082,fork TCP:10.1.13.9:8082
 
-                # Give the proxy a moment to stabilize
                 sleep 3
 
                 PROXY_URL="127.0.0.1:5000"
@@ -199,10 +197,22 @@ pipeline {
 
                 for service in ${JAVA_SERVICES}; do
                     echo "Processing service: ${service}"
-                    IMAGE_ID=$(docker compose -p 01e_com images -q "${service}" | head -n 1)
+                    
+                    # Try finding the image via docker compose first, then fallback to direct image name inspection
+                    IMAGE_ID=$(docker compose -p 01e_com images -q "${service}" 2>/dev/null | head -n 1 || true)
+                    
+                    if [ -z "$IMAGE_ID" ]; then
+                        IMAGE_ID=$(docker images -q "${service}" | head -n 1 || true)
+                    fi
+                    
+                    if [ -z "$IMAGE_ID" ]; then
+                        IMAGE_ID=$(docker images -q "01e_com-${service}" | head -n 1 || true)
+                    fi
 
                     if [ -z "$IMAGE_ID" ]; then
-                        echo "ERROR: Docker image not found for ${service}"
+                        echo "ERROR: Docker image not found for service '${service}'"
+                        echo "Available docker images:"
+                        docker images
                         exit 1
                     fi
 
@@ -213,7 +223,6 @@ pipeline {
                     docker push "$TARGET_IMAGE"
                 done
 
-                # Cleanup
                 docker logout "$PROXY_URL"
                 docker rm -f nexus-proxy || true
 
