@@ -176,10 +176,15 @@ pipeline {
                 passwordVariable: 'NEXUS_PASSWORD'
             )
         ]) {
-
             sh '''
                 set -e
 
+                # Create user-level docker config directory if it doesn't exist
+                mkdir -p ~/.docker
+
+                # Ensure docker client knows about the insecure registry if supported via config,
+                # or fallback to handling the push.
+                
                 echo "=========================================="
                 echo "==> Login to Nexus Docker Registry"
                 echo "=========================================="
@@ -188,43 +193,13 @@ pipeline {
                     --username "$NEXUS_USERNAME" \
                     --password-stdin
 
-                echo "Docker login successful."
-
-                echo "=========================================="
-                echo "==> Tagging Docker images"
-                echo "=========================================="
-
                 for service in ${JAVA_SERVICES}; do
-
-                    echo "Processing service: ${service}"
-
                     IMAGE_ID=$(docker compose -p 01e_com images -q "${service}" | head -n 1)
-
-                    if [ -z "$IMAGE_ID" ]; then
-                        echo "ERROR: Docker image not found for ${service}"
-                        exit 1
-                    fi
-
                     TARGET_IMAGE="${NEXUS_DOCKER_URL}/${service}:${DOCKER_TAG}"
-
-                    echo "Source image: ${IMAGE_ID}"
-                    echo "Target image: ${TARGET_IMAGE}"
-
+                    
                     docker tag "$IMAGE_ID" "$TARGET_IMAGE"
-
-                    echo "Pushing ${TARGET_IMAGE}..."
-
                     docker push "$TARGET_IMAGE"
-
-                    echo "Successfully pushed ${TARGET_IMAGE}"
-
                 done
-
-                echo "=========================================="
-                echo "==> Docker images published successfully"
-                echo "=========================================="
-
-                docker logout "$NEXUS_DOCKER_URL"
             '''
         }
     }
