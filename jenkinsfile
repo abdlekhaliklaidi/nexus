@@ -151,84 +151,84 @@ pipeline {
             }
         }
         
-        stage('Publish Docker Images to Nexus') {
-    when {
-        allOf {
-            anyOf {
-                branch 'main'
-                environment name: 'CHANGE_TARGET', value: 'main'
-                expression {
-                    env.GIT_BRANCH?.endsWith('main')
-                }
-            }
+//         stage('Publish Docker Images to Nexus') {
+//     when {
+//         allOf {
+//             anyOf {
+//                 branch 'main'
+//                 environment name: 'CHANGE_TARGET', value: 'main'
+//                 expression {
+//                     env.GIT_BRANCH?.endsWith('main')
+//                 }
+//             }
 
-            not {
-                triggeredBy 'TimerTrigger'
-            }
-        }
-    }
+//             not {
+//                 triggeredBy 'TimerTrigger'
+//             }
+//         }
+//     }
 
-        steps {
-        withCredentials([
-            usernamePassword(
-                credentialsId: 'nexus-maven-publisher',
-                usernameVariable: 'NEXUS_USERNAME',
-                passwordVariable: 'NEXUS_PASSWORD'
-            )
-        ]) {
+//         steps {
+//         withCredentials([
+//             usernamePassword(
+//                 credentialsId: 'nexus-maven-publisher',
+//                 usernameVariable: 'NEXUS_USERNAME',
+//                 passwordVariable: 'NEXUS_PASSWORD'
+//             )
+//         ]) {
 
-            sh '''
-                set -e
+//             sh '''
+//                 set -e
 
-                echo "=========================================="
-                echo "==> Login to Nexus Docker Registry"
-                echo "=========================================="
+//                 echo "=========================================="
+//                 echo "==> Login to Nexus Docker Registry"
+//                 echo "=========================================="
 
-                echo "$NEXUS_PASSWORD" | docker login "$NEXUS_DOCKER_URL" \
-                    --username "$NEXUS_USERNAME" \
-                    --password-stdin
+//                 echo "$NEXUS_PASSWORD" | docker login "$NEXUS_DOCKER_URL" \
+//                     --username "$NEXUS_USERNAME" \
+//                     --password-stdin
 
-                echo "Docker login successful."
+//                 echo "Docker login successful."
 
-                echo "=========================================="
-                echo "==> Tagging Docker images"
-                echo "=========================================="
+//                 echo "=========================================="
+//                 echo "==> Tagging Docker images"
+//                 echo "=========================================="
 
-                for service in ${JAVA_SERVICES}; do
+//                 for service in ${JAVA_SERVICES}; do
 
-                    echo "Processing service: ${service}"
+//                     echo "Processing service: ${service}"
 
-                    IMAGE_ID=$(docker compose -p 01e_com images -q "${service}" | head -n 1)
+//                     IMAGE_ID=$(docker compose -p 01e_com images -q "${service}" | head -n 1)
 
-                    if [ -z "$IMAGE_ID" ]; then
-                        echo "ERROR: Docker image not found for ${service}"
-                        exit 1
-                    fi
+//                     if [ -z "$IMAGE_ID" ]; then
+//                         echo "ERROR: Docker image not found for ${service}"
+//                         exit 1
+//                     fi
 
-                    TARGET_IMAGE="${NEXUS_DOCKER_URL}/${service}:${DOCKER_TAG}"
+//                     TARGET_IMAGE="${NEXUS_DOCKER_URL}/${service}:${DOCKER_TAG}"
 
-                    echo "Source image: ${IMAGE_ID}"
-                    echo "Target image: ${TARGET_IMAGE}"
+//                     echo "Source image: ${IMAGE_ID}"
+//                     echo "Target image: ${TARGET_IMAGE}"
 
-                    docker tag "$IMAGE_ID" "$TARGET_IMAGE"
+//                     docker tag "$IMAGE_ID" "$TARGET_IMAGE"
 
-                    echo "Pushing ${TARGET_IMAGE}..."
+//                     echo "Pushing ${TARGET_IMAGE}..."
 
-                    docker push "$TARGET_IMAGE"
+//                     docker push "$TARGET_IMAGE"
 
-                    echo "Successfully pushed ${TARGET_IMAGE}"
+//                     echo "Successfully pushed ${TARGET_IMAGE}"
 
-                done
+//                 done
 
-                echo "=========================================="
-                echo "==> Docker images published successfully"
-                echo "=========================================="
+//                 echo "=========================================="
+//                 echo "==> Docker images published successfully"
+//                 echo "=========================================="
 
-                docker logout "$NEXUS_DOCKER_URL"
-            '''
-        }
-    }
-}
+//                 docker logout "$NEXUS_DOCKER_URL"
+//             '''
+//         }
+//     }
+// }
 
         // Nexus Repository Readiness
         stage('Nexus Repository Readiness') {
