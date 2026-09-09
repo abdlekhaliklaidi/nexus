@@ -157,18 +157,12 @@ pipeline {
             anyOf {
                 branch 'main'
                 environment name: 'CHANGE_TARGET', value: 'main'
-                expression {
-                    env.GIT_BRANCH?.endsWith('main')
-                }
+                expression { env.GIT_BRANCH?.endsWith('main') }
             }
-
-            not {
-                triggeredBy 'TimerTrigger'
-            }
+            not { triggeredBy 'TimerTrigger' }
         }
     }
-
-        steps {
+    steps {
         withCredentials([
             usernamePassword(
                 credentialsId: 'nexus-maven-publisher',
@@ -179,27 +173,53 @@ pipeline {
             sh '''
                 set -e
 
-                # Create user-level docker config directory if it doesn't exist
-                mkdir -p ~/.docker
-
-                # Ensure docker client knows about the insecure registry if supported via config,
-                # or fallback to handling the push.
-                
                 echo "=========================================="
-                echo "==> Login to Nexus Docker Registry"
+                echo "==> Starting local socat proxy for Nexus HTTP"
                 echo "=========================================="
 
-                echo "$NEXUS_PASSWORD" | docker login "$NEXUS_DOCKER_URL" \
+                # Clean up any leftover proxy container and start a new one
+                docker rm -f nexus-proxy || true
+                docker run -d --name nexus-proxy --network ci-plateform_ci_net \
+                    -p 5000:8082 \
+                    alpine/socat \
+                    TCP-LISTEN:8082,fork TCP:10.1.13.9:8082
+
+                # Give the proxy a moment to stabilize
+                sleep 3
+
+                PROXY_URL="127.0.0.1:5000"
+
+                echo "=========================================="
+                echo "==> Login to Nexus Docker Proxy"
+                echo "=========================================="
+
+                echo "$NEXUS_PASSWORD" | docker login "$PROXY_URL" \
                     --username "$NEXUS_USERNAME" \
                     --password-stdin
 
                 for service in ${JAVA_SERVICES}; do
+                    echo "Processing service: ${service}"
                     IMAGE_ID=$(docker compose -p 01e_com images -q "${service}" | head -n 1)
-                    TARGET_IMAGE="${NEXUS_DOCKER_URL}/${service}:${DOCKER_TAG}"
-                    
+
+                    if [ -z "$IMAGE_ID" ]; then
+                        echo "ERROR: Docker image not found for ${service}"
+                        exit 1
+                    fi
+
+                    TARGET_IMAGE="${PROXY_URL}/${service}:${DOCKER_TAG}"
+
+                    echo "Tagging and pushing ${TARGET_IMAGE}..."
                     docker tag "$IMAGE_ID" "$TARGET_IMAGE"
                     docker push "$TARGET_IMAGE"
                 done
+
+                # Cleanup
+                docker logout "$PROXY_URL"
+                docker rm -f nexus-proxy || true
+
+                echo "=========================================="
+                echo "==> Docker images published successfully"
+                echo "=========================================="
             '''
         }
     }
