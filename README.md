@@ -1,388 +1,277 @@
-# 01E-COM - E-Commerce Microservices Platform
+# Buy02 — Nexus Repository Manager Integration
 
-01E-COM is a modern e-commerce platform built using a microservices architecture. The application provides secure authentication, product management, image uploading, and API gateway routing while demonstrating scalable backend development using Spring Boot and Angular.
+## Overview
 
----
+This project implements a centralized artifact management system using **Nexus Repository Manager** for the `buy02` e-commerce microservices platform. Nexus acts as the single source of truth for:
 
+- **Maven artifacts** (JARs) produced by the Java Spring Boot microservices
+- **Docker images** produced by `docker compose build` for each service and the Angular frontend
 
-# Architecture
+Nexus is fully integrated into a **Jenkins CI/CD pipeline** that automatically builds, tests, versions, and publishes every artifact on each push to `main`.
 
-```
-                        +------------------+
-                        |   Angular 19     |
-                        |      Client      |
-                        +--------+---------+
-                                 |
-                                 |
-                          HTTPS (SSL)
-                                 |
-                          Nginx Reverse Proxy
-                                 |
-                          HTTPS (SSL)
-                                 |
-                        Spring Cloud Gateway
-                                 |
-        --------------------------------------------------
-        |                     |                          |
-        |                     |                          |
-  User Service         Product Service          Media Service
-        |                     |                          |
-     MongoDB/redis             MongoDB                 File Storage
-        |               
-      Kafka  <----------------------->  Product Service
-```
+### Microservices covered
 
----
+| Service | Type | Artifact published to Nexus |
+|---|---|---|
+| `gateway_service` | Spring Boot (Spring Cloud Gateway) | JAR + Docker image |
+| `user_service` | Spring Boot | JAR + Docker image |
+| `product_service` | Spring Boot | JAR + Docker image |
+| `media_service` | Spring Boot | JAR + Docker image |
+| `cart_service` | Spring Boot | JAR + Docker image |
+| `order_service` | Spring Boot | JAR + Docker image |
+| `client` (frontend) | Angular | Docker image only (Nginx) |
 
-# Features
+### Architecture
 
-- User Registration
-- User Login using JWT Authentication
-- Role-based Authorization
-- Product Management
-- Product Image Upload
-- User Profile Management
-- Secure API Gateway
-- HTTPS Support
-- Kafka Event Communication
-- Dockerized Services
-- Responsive Angular Frontend
+flowchart LR
+    Dev[Developer Push] --> GH[GitHub]
+    GH -- webhook --> Jenkins
+    Jenkins -->|mvn test / npm test| Tests[Unit Tests]
+    Jenkins -->|sonar-scanner| Sonar[SonarQube Quality Gate]
+    Jenkins -->|mvn package| Build[Build JARs]
+    Jenkins -->|docker compose build| DockerBuild[Build Docker Images]
+    Build -->|mvn deploy| NexusMaven[(Nexus - Maven Repos)]
+    DockerBuild -->|docker push| NexusDocker[(Nexus - Docker Repo)]
+    Jenkins -->|docker compose up -d| Deploy[Deployment Server]
+    NexusMaven -.dependency resolution.-> Build
+    NexusDocker -.docker pull.-> Deploy
 
 ---
 
-# Technologies
+## 1. Prerequisites
 
-## Backend
-
-- Java 25
-- Spring Boot
-- Spring Security
-- Spring Cloud Gateway
-- Spring Data MongoDB
-- Apache Kafka
-- Maven
-
-## Frontend
-
-- Angular 19
-- TypeScript
-- Tailwind CSS
-- RxJS
-
-## Database
-
-- MongoDB
-
-## DevOps
-
-- Docker
-- Docker Compose
-- Nginx
-- SSL Certificates
+- Docker & Docker Compose
+- Java 11+ and Maven (wrapped via `./mvnw`, no local install required)
+- Node.js 20+ (for the Angular client, only needed outside the CI container)
+- Jenkins with the following plugins: Pipeline, SonarQube Scanner, JUnit, JaCoCo, Email Extension
+- A dedicated Linux user for Nexus (never run Nexus as `root`)
 
 ---
 
-# Project Structure
+## 2. Nexus Setup
 
-```
-01E-COM/
+### 2.1 Installation
 
-│
-├── gateway-service/
-│
-├── user-service/
-│
-├── product-service/
-│
-├── media-service/
-│
-├── client/
-│
-├── docker-compose.yml
-│
-└── README.md
-```
-
----
-
-# Microservices
-
-## Gateway Service
-
-Responsibilities
-
-- Single entry point
-- JWT validation
-- Request routing
-- HTTPS termination
-- CORS configuration
-
-Routes
-
-```
-api/auth/**
-api/products/**
-api/media/**
-api/uploads/**
-```
-
----
-
-## User Service
-
-Responsibilities
-
-- Registration
-- Login
-- JWT generation
-- User Profile
-- Kafka Producer
-
-Database
-
-MongoDB
-
-redis
-
----
-
-## Product Service
-
-Responsibilities
-
-- CRUD Products
-- Product Search
-- Product Images
-- Kafka Consumer
-
-Database
-
-MongoDB
-
----
-
-## Media Service
-
-Responsibilities
-
-- Upload Images
-- Store Files
-- Serve Uploaded Files
-
----
-
-# Authentication
-
-JWT is generated after successful login.
-
-The Angular application stores the JWT and attaches it to every authenticated request.
-
-Gateway validates every incoming token before forwarding requests to internal services.
-
----
-
-# Kafka Communication
-
-Current Event
-
-```
-UserDeletedEvent
-```
-
-Flow
-
-```
-User Service
-      |
-      | Publish Event
-      |
-    Kafka
-      |
-      | Consume Event
-      |
-Product Service
-```
-
-This allows services to communicate asynchronously without direct dependencies.
-
----
-# Cache 
-- redis
----
-# Security
-
-- JWT Authentication
-- HTTPS
-- Spring Security
-- Gateway Authorization
-- CORS Protection
-
----
-
-# Image Upload Flow
-
-```
-Angular
-
-    |
-nginx
-    |
-POST api/media/upload
-
-    |
-
-Gateway
-
-    |
-
-Media Service
-
-    |
-
-uploads/
-
-    |
-
-Image URL
-
-    |
-
-Angular displays image
-```
-
----
-
-# Running the Project
-
-## Clone
+Nexus is deployed as a Docker container (`sonatype/nexus3`) on the CI Docker network so Jenkins, SonarQube, and Nexus can all talk to each other by service name.
 
 ```bash
-git clone https://github.com/louhabali/buy01.git
+docker network create ci-plateform_ci_net   # shared CI network, if not already created
 
-cd 01E-COM
+docker run -d --name nexus \
+  --network ci-plateform_ci_net \
+  -p 8081:8081 -p 8082:8082 \
+  -v nexus-data:/nexus-data \
+  sonatype/nexus3:3.96.0
 ```
 
----
+> 📸 **Screenshot to add:** `docker ps` output showing the `nexus` container running, and the Nexus web UI landing page at `http://<host>:8081`.
 
-## Start Docker
+Inside the container, Nexus already runs under a dedicated, non-root `nexus` user by default (this is the image's built-in behavior) — confirmed with:
+
+
+Retrieve the initial admin password and log in:
 
 ```bash
-docker compose up --build
+docker exec nexus cat /nexus-data/admin.password
 ```
+
+> 📸 **Screenshot to add:** first-login screen where the admin password is changed and anonymous access is disabled.
+
+### 2.2 Repository configuration
+
+From **Administration → Repository → Repositories**, the following repositories are created:
+
+| Name | Type | Format | Purpose |
+|---|---|---|---|
+| `maven-releases` | hosted | maven2 | Store release JARs built by the pipeline |
+| `maven-snapshots` | hosted | maven2 | Store `-SNAPSHOT` JARs during development |
+| `maven-central` | proxy | maven2 | Proxy to `https://repo1.maven.org/maven2/` for external dependencies |
+| `maven-public` | group | maven2 | Aggregates the three repos above — this is the single URL Maven talks to |
+| `docker-hosted` | hosted | docker | Store the microservices' Docker images |
+
+> 📸 **Screenshot to add:** the Repositories list page showing all 5 repos with their type/format columns, plus the detailed config screen of the `maven-public` group showing its member repos in order (`maven-releases` → `maven-snapshots` → `maven-central`).
+
+For the Docker repository, enable the **HTTP connector** on a dedicated port (`8082` in this project) under Repository settings, since Docker requires either HTTPS or an explicit insecure-registry allowance.
+
+> ⚠️ **Note on HTTP/HTTPS:** Our Docker daemon is configured for HTTPS by default, while Nexus's Docker repository is exposed over plain HTTP. Rather than marking the Docker daemon as insecure, the pipeline spins up a lightweight `socat` TCP proxy (`alpine/socat`) that forwards a local port to Nexus's HTTP Docker port, so `docker login` / `docker push` work without weakening the daemon's global TLS policy. See [Section 6](#6-docker-integration) for details.
 
 ---
 
-## Frontend
+## 3. Maven Integration
+
+### 3.1 `settings.xml`
+
+Each microservice's build uses a Maven `settings.xml` (generated dynamically by Jenkins from a credential, never committed to the repo) that:
+
+1. Points **all** dependency resolution through the `maven-public` group repo (acts as a proxy/mirror for every external dependency).
+2. Provides authenticated server entries so Maven can both **read** from `maven-public` and **deploy** to `maven-releases` / `maven-snapshots`.
+
+```xml
+<settings>
+  <servers>
+    <server>
+      <id>nexus-releases</id>
+      <username>${NEXUS_USERNAME}</username>
+      <password>${NEXUS_PASSWORD}</password>
+    </server>
+    <server>
+      <id>nexus-snapshots</id>
+      <username>${NEXUS_USERNAME}</username>
+      <password>${NEXUS_PASSWORD}</password>
+    </server>
+    <!-- Required: the mirror id below must also have a matching <server> entry,
+         otherwise Maven sends unauthenticated requests and Nexus returns 401 -->
+    <server>
+      <id>nexus-public</id>
+      <username>${NEXUS_USERNAME}</username>
+      <password>${NEXUS_PASSWORD}</password>
+    </server>
+  </servers>
+
+  <mirrors>
+    <mirror>
+      <id>nexus-public</id>
+      <url>http://nexus:8081/repository/maven-public/</url>
+      <mirrorOf>*</mirrorOf>
+    </mirror>
+  </mirrors>
+</settings>
+```
+
+### 3.2 `pom.xml` — `distributionManagement`
+
+Each service's `pom.xml` declares where `mvn deploy` should publish artifacts, switching automatically between the releases and snapshots repository based on the version suffix:
+
+```xml
+<distributionManagement>
+  <repository>
+    <id>nexus-releases</id>
+    <url>http://nexus:8081/repository/maven-releases/</url>
+  </repository>
+  <snapshotRepository>
+    <id>nexus-snapshots</id>
+    <url>http://nexus:8081/repository/maven-snapshots/</url>
+  </snapshotRepository>
+</distributionManagement>
+```
+
+### 3.3 Publishing an artifact
 
 ```bash
-cd frontend
+cd gateway_service
+./mvnw deploy -DskipTests -s settings-nexus.xml
+```
 
-npm install
+> 📸 **Screenshot to add:** Jenkins console log showing `Uploading to nexus-releases: ...` / `BUILD SUCCESS`, and the corresponding artifact visible under **Browse → maven-releases** in the Nexus UI.
 
-ng serve --ssl --proxy-config proxy.conf.json
+### 3.4 Verifying dependency resolution through Nexus
+
+```bash
+./mvnw dependency:resolve -s settings-nexus.xml
+```
+
+All lines should show `Downloading from nexus-public: http://nexus:8081/repository/maven-public/...` confirming no dependency is fetched directly from Maven Central — everything is cached and served by Nexus.
+
+---
+
+## 4. Versioning
+
+- Each service's version lives in its `pom.xml` (`<version>`).
+- The pipeline stamps the produced Docker images with the shared `DOCKER_TAG` environment variable (currently `0.0.1`), keeping Maven artifact versions and Docker image tags aligned.
+- Snapshot builds (`-SNAPSHOT` suffix) are automatically routed to `maven-snapshots`; tagged releases go to `maven-releases`, so multiple versions of the same artifact can coexist and be rolled back to individually.
+
+```bash
+# List all published versions of an artifact
+curl -u admin:<password> \
+  "http://nexus:8081/service/rest/v1/search?repository=maven-releases&name=gateway_service"
+```
+
+> 📸 **Screenshot to add:** the Nexus **Browse** view of `maven-releases/buy01/gateway_service/` showing multiple version folders (e.g. `0.0.1`, `0.0.2`), demonstrating rollback capability by re-pulling an older version.
+
+---
+
+## 5. Docker Integration
+
+### 5.1 Docker repository
+
+A `docker-hosted` repository is created in Nexus with its HTTP connector on port `8082`.
+
+### 5.2 The HTTP/HTTPS bridge (`socat`)
+
+Because the host Docker daemon expects HTTPS registries and Nexus's Docker repo is plain HTTP, the pipeline starts a temporary `socat` proxy container that forwards `127.0.0.1:5000` → `nexus:8082`:
+
+```bash
+docker run -d --name nexus-proxy --network ci-plateform_ci_net \
+  -p 5000:8082 \
+  alpine/socat \
+  TCP-LISTEN:8082,fork TCP:10.1.13.9:8082
+```
+
+Docker is configured to treat `127.0.0.1:5000` as an **insecure registry** (localhost is trusted by default by the Docker daemon), which avoids touching the daemon's global TLS configuration for the real Nexus host.
+
+### 5.3 Build, tag, push
+
+```bash
+docker compose -p 01e_com build
+
+docker login 127.0.0.1:5000 -u <NEXUS_USERNAME> -p <NEXUS_PASSWORD>
+
+docker tag 01e_com-gateway 127.0.0.1:5000/gateway_service:0.0.1
+docker push 127.0.0.1:5000/gateway_service:0.0.1
+```
+
+> 📸 **Screenshot to add:** terminal output of a successful `docker push`, and the **Browse → docker-hosted** view in Nexus listing the pushed image with its tag and digest.
+
+### 5.4 Pulling back from Nexus (verification)
+
+```bash
+docker pull 127.0.0.1:5000/gateway_service:0.0.1
+docker run --rm 127.0.0.1:5000/gateway_service:0.0.1 --version
+```
+
+> 📸 **Screenshot to add:** `docker pull` succeeding against the Nexus registry, proving retrieval works end-to-end.
+
+---
+
+## 6. CI/CD Pipeline (Jenkins)
+
+The pipeline (`Jenkinsfile`) is triggered automatically via `githubPush()` on every commit, plus a weekly SonarQube health scan (`cron('H H * * 0')`).
+
+### Pipeline stages
+
+1. **Checkout & Setup Env** — pulls the repo and injects the `.env` file from Jenkins credentials.
+2. **Parallel Automated Testing** — Angular unit tests (`npm run test:ci`) and Java unit tests (`./mvnw test jacoco:report`) run in parallel.
+3. **SonarQube Scanner Analysis** — static analysis + coverage across all six services and the Angular client.
+4. **Quality Gate Check** — pipeline aborts if SonarQube's quality gate fails.
+5. **Build Artifacts & Container Images** — `mvn package -DskipTests` for every service (parallelized) followed by `docker compose build`.
+6. **Publish Docker Images to Nexus** — runs only on `main`, not on scheduled/timer builds; uses the `socat` bridge described above.
+7. **Nexus Repository Readiness** — polls `GET /service/rest/v1/status` until Nexus answers `2xx` before publishing Maven artifacts.
+8. **Publish Maven Artifacts to Nexus** — `mvn deploy` for every service using the dynamically generated `settings-nexus.xml`.
+9. **Deploy Application** — `docker compose up -d` on the target deployment directory, pulling the freshly published images.
+
+> 📸 **Screenshot to add:** the Jenkins **Stage View** (Blue Ocean or classic) showing all stages green end-to-end, and the SonarQube dashboard showing the project's quality gate as **Passed**.
+
+### Running the pipeline manually
+
+The same steps can be reproduced locally without Jenkins:
+
+```bash
+
+docker compose -p up --build
+docker compose -p docker compose -f docker-compose.nexus.yml up -d
 ```
 
 ---
 
-# Services
+## 7. Security & Access Control (Bonus)
 
-| Service | Port |
-|----------|------|
-| Angular/nginx | 8433 |
-| Gateway | 8089 |
-| User Service | 8081 |
-| Product Service | 8082 |
-| Media Service | 8083 |
-| MongoDB | 27017 |
-| Kafka | 9092 |
+- **Anonymous access is disabled** on Nexus (`Administration → Security → Anonymous Access`).
+- A dedicated **service account** (`nexus-maven-publisher` in Jenkins credentials) is used by the pipeline instead of the `admin` account, following least-privilege.
+- **Roles** are scoped per repository:
+  - `ci-publisher` role: `nx-repository-view-maven2-maven-releases-add`, `nx-repository-view-maven2-maven-snapshots-add`, `nx-repository-view-docker-docker-hosted-add`
+  - `ci-reader` role: read-only access to `maven-public` and `docker-hosted` for dependency resolution / image pulls
+- Credentials are never stored in the repository — they are injected at runtime via Jenkins' `withCredentials` and written to a temporary `settings-nexus.xml` that is deleted at the end of each build (`rm -f settings-nexus.xml`).
 
----
-
-# API Overview
-
-## Authentication
-
-```
-POST api/auth/register
-
-POST api/auth/login
-
-GET api/auth/profile
-```
+> 📸 **Screenshot to add:** the Nexus **Roles** and **Users** administration screens showing the `ci-publisher` / `ci-reader` roles and their assigned privileges.
 
 ---
-
-## Products
-
-```
-GET api/products
-
-GET api/products/{id}
-
-POST api/products
-
-PUT api/products/{id}
-
-DELETE api/products/{id}
-```
-
----
-
-## Media
-
-```
-POST api/media/upload
-
-GET api/uploads/{filename}
-```
-
----
-
-# Folder Description
-
-## frontend
-
-Angular application.
-
-## gateway-service
-
-Spring Cloud Gateway responsible for routing requests.
-
-## user-service
-
-Authentication and user management.
-
-## product-service
-
-Handles products and consumes Kafka events.
-
-## media-service
-
-Stores uploaded images.
-
----
-
-# Future Improvements
-
-- Order Service
-- Payment Service
-- Shopping Cart
-- Wishlist
-- Reviews
-- Search Service
-- Email Notifications
-- Kubernetes Deployment
-- CI/CD Pipeline
-- Monitoring with Prometheus & Grafana
-
----
-
-# Author
-
-Ali Louhab
-
----
-
-# License
-
-This project is developed for educational purposes and demonstrates a complete microservices-based e-commerce platform using Spring Boot, Angular, Kafka, MongoDB, Docker, Nginx, and Spring Cloud Gateway.

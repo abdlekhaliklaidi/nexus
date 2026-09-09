@@ -18,6 +18,7 @@ pipeline {
         SONAR_HOST_URL  = 'http://sonarqube:9000'
         // JAVA_SERVICES   = 'gateway_service user_service product_service media_service cart_service'
         JAVA_SERVICES   = 'gateway_service user_service product_service media_service cart_service order_service'
+        DOCKER_SERVICES = "${JAVA_SERVICES} frontend"
         FRONTEND_PORT   = '8443'
         GATEWAY_PORT    = '8089'
         E2E_BASE_URL    = 'https://frontend:8443'
@@ -195,7 +196,7 @@ pipeline {
                     --username "$NEXUS_USERNAME" \
                     --password-stdin
 
-                for service in ${JAVA_SERVICES}; do
+                for service in ${DOCKER_SERVICES}; do
                     echo "Processing service: ${service}"
 
                     # Derive variations to safely match built image tags
