@@ -198,12 +198,10 @@ pipeline {
                 for service in ${JAVA_SERVICES}; do
                     echo "Processing service: ${service}"
                     
-                    # Derive base name by removing '_service' if present (e.g. gateway_service -> gateway)
+                    # Derive variations to safely match built image tags (e.g., gateway_service vs gateway)
                     BASE_NAME=$(echo "${service}" | sed 's/_service//g')
 
                     IMAGE_ID=""
-                    
-                    # Search through possible naming patterns in the local docker cache
                     for pattern in "${service}" "01e_com-${service}" "${BASE_NAME}" "01e_com-${BASE_NAME}"; do
                         if [ -z "$IMAGE_ID" ]; then
                             IMAGE_ID=$(docker images -q "${pattern}" 2>/dev/null | head -n 1 || true)
@@ -211,14 +209,14 @@ pipeline {
                     done
 
                     if [ -z "$IMAGE_ID" ]; then
-                        echo "ERROR: Docker image not found for service '${service}' (Base: ${BASE_NAME})"
+                        echo "ERROR: Docker image not found for service '${service}'"
                         echo "Available docker images:"
                         docker images
                         exit 1
                     fi
 
                     # Target name mapping for Nexus registry repository
-                    TARGET_NAME="${BASE_NAME}"
+                    TARGET_NAME="${service}"
                     if [[ "${service}" == *"frontend"* ]]; then
                         TARGET_NAME="frontend"
                     fi
