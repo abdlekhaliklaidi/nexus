@@ -25,6 +25,11 @@ pipeline {
         NEXUS_HOST      = 'nexus'
         NEXUS_PORT      = '8081'
         NEXUS_URL       = 'http://nexus:8081'
+
+        NEXUS_DOCKER_PORT = '8082'
+        NEXUS_DOCKER_URL  = 'nexus:8082'
+        DOCKER_TAG        = '0.0.1'
+
     }
 
     triggers {
@@ -146,6 +151,85 @@ pipeline {
             }
         }
         
+        stage('Publish Docker Images to Nexus') {
+    when {
+        allOf {
+            anyOf {
+                branch 'main'
+                environment name: 'CHANGE_TARGET', value: 'main'
+                expression {
+                    env.GIT_BRANCH?.endsWith('main')
+                }
+            }
+
+            not {
+                triggeredBy 'TimerTrigger'
+            }
+        }
+    }
+
+        steps {
+        withCredentials([
+            usernamePassword(
+                credentialsId: 'nexus-maven-publisher',
+                usernameVariable: 'NEXUS_USERNAME',
+                passwordVariable: 'NEXUS_PASSWORD'
+            )
+        ]) {
+
+            sh '''
+                set -e
+
+                echo "=========================================="
+                echo "==> Login to Nexus Docker Registry"
+                echo "=========================================="
+
+                echo "$NEXUS_PASSWORD" | docker login "$NEXUS_DOCKER_URL" \
+                    --username "$NEXUS_USERNAME" \
+                    --password-stdin
+
+                echo "Docker login successful."
+
+                echo "=========================================="
+                echo "==> Tagging Docker images"
+                echo "=========================================="
+
+                for service in ${JAVA_SERVICES}; do
+
+                    echo "Processing service: ${service}"
+
+                    IMAGE_ID=$(docker compose -p 01e_com images -q "${service}" | head -n 1)
+
+                    if [ -z "$IMAGE_ID" ]; then
+                        echo "ERROR: Docker image not found for ${service}"
+                        exit 1
+                    fi
+
+                    TARGET_IMAGE="${NEXUS_DOCKER_URL}/${service}:${DOCKER_TAG}"
+
+                    echo "Source image: ${IMAGE_ID}"
+                    echo "Target image: ${TARGET_IMAGE}"
+
+                    docker tag "$IMAGE_ID" "$TARGET_IMAGE"
+
+                    echo "Pushing ${TARGET_IMAGE}..."
+
+                    docker push "$TARGET_IMAGE"
+
+                    echo "Successfully pushed ${TARGET_IMAGE}"
+
+                done
+
+                echo "=========================================="
+                echo "==> Docker images published successfully"
+                echo "=========================================="
+
+                docker logout "$NEXUS_DOCKER_URL"
+            '''
+        }
+    }
+}
+
         // Nexus Repository Readiness
         stage('Nexus Repository Readiness') {
     when {
@@ -251,6 +335,15 @@ pipeline {
         </server>
 
     </servers>
+
+    <mirrors>
+        <mirror>
+            <id>nexus-public</id>
+            <name>Nexus Maven Public</name>
+            <url>http://nexus:8081/repository/maven-public/</url>
+            <mirrorOf>*</mirrorOf>
+        </mirror>
+    </mirrors>
 
 </settings>
 EOF
