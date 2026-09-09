@@ -219,7 +219,7 @@ pipeline {
     steps {
         withCredentials([
             usernamePassword(
-                credentialsId: 'nexus-maven-credentials',
+                credentialsId: 'nexus-maven-publisher',
                 usernameVariable: 'NEXUS_USERNAME',
                 passwordVariable: 'NEXUS_PASSWORD'
             )
@@ -238,7 +238,7 @@ pipeline {
 
     <servers>
         <server>
-            <id>nexus</id>
+             <id>nexus-releases</id>
             <username>${NEXUS_USERNAME}</username>
             <password>${NEXUS_PASSWORD}</password>
         </server>
