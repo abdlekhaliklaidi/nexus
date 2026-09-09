@@ -83,34 +83,33 @@ pipeline {
         }
 
         stage('SonarQube Scanner Analysis') {
-            agent {
-                docker {
-                    image 'sonarsource/sonar-scanner-cli:latest'
-                    args '--entrypoint="" --network ci-plateform_ci_net'
-                    reuseNode true
-                }
-            }
-            //
-            steps {
-                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                    withSonarQubeEnv('SonarQube') {
-                        sh '''
-                            sonar-scanner \
-                              -Dsonar.host.url=${SONAR_HOST_URL} \
-                              -Dsonar.token=${SONAR_TOKEN} \
-                              -Dsonar.projectKey=${APP_NAME} \
-                              -Dsonar.sources=gateway_service/src/main/java,user_service/src/main/java,product_service/src/main/java,media_service/src/main/java,cart_service/src/main/java,order_service/src/main/java,client/src \
-                              -Dsonar.tests=gateway_service/src/test/java,user_service/src/test/java,product_service/src/test/java,media_service/src/test/java,cart_service/src/test/java,order_service/src/test/java \
-                              -Dsonar.java.binaries=gateway_service/target/classes,user_service/target/classes,product_service/target/classes,media_service/target/classes,cart_service/target/classes,order_service/target/classes \
-                              -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \
-                              -Dsonar.javascript.lcov.reportPaths=client/coverage/lcov.info \
-                              -Dsonar.coverage.exclusions=**/*Application.java,**/config/**,**/dto/**,**/entity/**,**/entities/**,**/event/**,**/model/**,client/src/main.ts,client/src/environments/** \
-                              -Dsonar.exclusions=**/node_modules/**,**/target/**,**/*.spec.ts,**/config/**,**/event/**,**/model/**,**/dto/**,**/entity/**
-                        '''
-                    }
-                }
-            }
+    agent {
+        docker {
+            image 'sonarsource/sonar-scanner-cli:latest'
+            args '--entrypoint="" --network ci-plateform_ci_net'
+            reuseNode true
         }
+    }
+
+    steps {
+        withSonarQubeEnv('SonarQube') {
+            sh '''
+                set -e
+
+                sonar-scanner \
+                  -Dsonar.projectKey=${APP_NAME} \
+                  -Dsonar.sources=gateway_service/src/main/java,user_service/src/main/java,product_service/src/main/java,media_service/src/main/java,cart_service/src/main/java,order_service/src/main/java,client/src \
+                  -Dsonar.tests=gateway_service/src/test/java,user_service/src/test/java,product_service/src/test/java,media_service/src/test/java,cart_service/src/test/java,order_service/src/test/java \
+                  -Dsonar.java.binaries=gateway_service/target/classes,user_service/target/classes,product_service/target/classes,media_service/target/classes,cart_service/target/classes,order_service/target/classes \
+                  -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \
+                  -Dsonar.javascript.lcov.reportPaths=client/coverage/lcov.info \
+                  -Dsonar.coverage.exclusions=**/*Application.java,**/config/**,**/dto/**,**/entity/**,**/entities/**,**/event/**,**/model/**,client/src/main.ts,client/src/environments/** \
+                  -Dsonar.exclusions=**/node_modules/**,**/target/**,**/*.spec.ts,**/config/**,**/event/**,**/model/**,**/dto/**,**/entity/**
+            '''
+        }
+    }
+}
+
 
         stage('Quality Gate Check') {
             steps {
@@ -154,7 +153,9 @@ pipeline {
             anyOf {
                 branch 'main'
                 environment name: 'CHANGE_TARGET', value: 'main'
-                expression { env.GIT_BRANCH?.endsWith('main') }
+                expression {
+                    env.GIT_BRANCH?.endsWith('main')
+                }
             }
 
             not {
@@ -164,14 +165,17 @@ pipeline {
     }
 
     steps {
-        echo "Checking Nexus Repository..."
-
         sh '''
             set -e
 
-            echo "Checking Nexus at ${NEXUS_URL}"
+            echo "Checking Nexus DNS..."
+
+            getent hosts nexus
+
+            echo "Checking Nexus HTTP..."
 
             for i in $(seq 1 60); do
+
                 status=$(curl -sS \
                     -o /dev/null \
                     -w '%{http_code}' \
@@ -181,17 +185,15 @@ pipeline {
 
                 echo "Nexus HTTP status: ${status}"
 
-                case "${status}" in
-                    2*)
-                        echo "Nexus Repository is ready."
-                        exit 0
-                        ;;
-                esac
+                if echo "${status}" | grep -q '^2'; then
+                    echo "✅ Nexus is ready."
+                    exit 0
+                fi
 
                 sleep 5
             done
 
-            echo "Nexus Repository did not become ready."
+            echo "❌ Nexus did not become ready."
             exit 1
         '''
     }
@@ -203,7 +205,9 @@ pipeline {
             anyOf {
                 branch 'main'
                 environment name: 'CHANGE_TARGET', value: 'main'
-                expression { env.GIT_BRANCH?.endsWith('main') }
+                expression {
+                    env.GIT_BRANCH?.endsWith('main')
+                }
             }
 
             not {
@@ -220,21 +224,45 @@ pipeline {
                 passwordVariable: 'NEXUS_PASSWORD'
             )
         ]) {
+
             sh '''
                 set -e
 
-                echo "Publishing Maven artifacts to Nexus..."
+                echo "Creating temporary Maven settings..."
+
+                cat > "$WORKSPACE/settings-nexus.xml" <<EOF
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+          https://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+    <servers>
+        <server>
+            <id>nexus</id>
+            <username>${NEXUS_USERNAME}</username>
+            <password>${NEXUS_PASSWORD}</password>
+        </server>
+    </servers>
+
+</settings>
+EOF
 
                 for dir in ${JAVA_SERVICES}; do
+
+                    echo "=========================================="
                     echo "==> Deploying ${dir}"
+                    echo "=========================================="
 
                     cd "$WORKSPACE/$dir"
 
-                    ./mvnw deploy -DskipTests \
-                        -Dnexus.username="${NEXUS_USERNAME}" \
-                        -Dnexus.password="${NEXUS_PASSWORD}"
+                    ./mvnw deploy \
+                        -DskipTests \
+                        -s "$WORKSPACE/settings-nexus.xml"
+
                 done
             '''
+
+            sh 'rm -f "$WORKSPACE/settings-nexus.xml"'
         }
     }
 }
@@ -392,26 +420,39 @@ pipeline {
         always {
             sh 'rm -f .env'
         }
+
          success {
-            echo "🚀 CI/CD SUCCESS"
-             script {
-                mail(
-                    to: 'abdlekhaliklaidi@gmail.com',
-                    subject: "✅ SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                    body: "Build passed.\nLogs: ${env.BUILD_URL}"
-                )
-            }
+    echo "🚀 CI/CD SUCCESS"
+
+    script {
+        try {
+            mail(
+                to: 'abdlekhaliklaidi@gmail.com',
+                subject: "✅ SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "Build passed.\nLogs: ${env.BUILD_URL}"
+            )
+        } catch (Exception e) {
+            echo "⚠️ Email notification failed: ${e.message}"
         }
+    }
+}
+
 
         failure {
-            echo "❌ CI/CD FAILED"
-             script {
-                mail(
-                    to: 'abdlekhaliklaidi@gmail.com',
-                    subject: "❌ FAILURE: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                    body: "Build failed.\nLogs: ${env.BUILD_URL}"
-                )
-            }
+    echo "❌ CI/CD FAILED"
+
+    script {
+        try {
+            mail(
+                to: 'abdlekhaliklaidi@gmail.com',
+                subject: "❌ FAILURE: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "Build failed.\nLogs: ${env.BUILD_URL}"
+            )
+        } catch (Exception e) {
+            echo "⚠️ Email notification failed: ${e.message}"
         }
+    }
+}
+
     }
 }
