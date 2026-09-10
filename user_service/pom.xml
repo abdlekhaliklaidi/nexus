@@ -15,7 +15,8 @@
 
     <groupId>buy01</groupId>
     <artifactId>user_service</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <!-- <version>0.0.1-SNAPSHOT</version> -->
+    <version>0.0.1</version>
 
     <properties>
         <java.version>21</java.version>
