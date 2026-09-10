@@ -7,7 +7,11 @@ WORKDIR /app
 COPY pom.xml .
 
 # Pre-download dependencies in the standard local Maven cache
-RUN mvn dependency:go-offline -B
+# RUN mvn dependency:go-offline -B
+RUN mvn -B -U \
+    -Dmaven.wagon.http.retryHandler.count=5 \
+    dependency:go-offline
+
 
 # Copy source code and build the application
 COPY src ./src
