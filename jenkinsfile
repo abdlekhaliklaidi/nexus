@@ -126,6 +126,35 @@ pipeline {
                 }
             }
         }
+        
+        stage('Set Maven Version') {
+    when {
+        not {
+            branch 'main'
+        }
+    }
+
+    steps {
+        sh '''
+            set -e
+
+            echo "Non-main branch detected: ${BRANCH_NAME}"
+            echo "Setting all services to SNAPSHOT version"
+
+            for dir in ${JAVA_SERVICES}; do
+                echo "==> ${dir}"
+
+                cd "$WORKSPACE/$dir"
+
+                ./mvnw versions:set \
+                    -DnewVersion=0.0.1-SNAPSHOT \
+                    -DgenerateBackupPoms=false
+
+                cd "$WORKSPACE"
+            done
+        '''
+    }
+}
 
         stage('Build Artifacts & Container Images') {
             environment {
