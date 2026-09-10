@@ -23,25 +23,41 @@ Nexus is fully integrated into a **Jenkins CI/CD pipeline** that automatically b
 
 ### Architecture
 
-flowchart LR
-    Dev[Developer Push] --> GH[GitHub]
-    GH -- webhook --> Jenkins
-    Jenkins -->|mvn test / npm test| Tests[Unit Tests]
-    Jenkins -->|sonar-scanner| Sonar[SonarQube Quality Gate]
-    Jenkins -->|mvn package| Build[Build JARs]
-    Jenkins -->|docker compose build| DockerBuild[Build Docker Images]
-    Build -->|mvn deploy| NexusMaven[(Nexus - Maven Repos)]
-    DockerBuild -->|docker push| NexusDocker[(Nexus - Docker Repo)]
-    Jenkins -->|docker compose up -d| Deploy[Deployment Server]
-    NexusMaven -.dependency resolution.-> Build
-    NexusDocker -.docker pull.-> Deploy
+Project Structure
+02E-COM/
+
+│
+├── gateway-service/
+│
+├── user-service/
+│
+├── product-service/
+│
+├── media-service/
+|
+|__ order-service/
+|
+|__ cared-service
+│
+├── client/
+|
+|__ docker-compose.nexus.yml
+│
+├── docker-compose.yml
+|
+|__ Dockerfile.jenkins
+|
+|__ Jenkinsfile
+|
+|__ sonar-project.properties
+│
+└── README.md
 
 ---
 
 ## 1. Prerequisites
 
 - Docker & Docker Compose
-- Java 11+ and Maven (wrapped via `./mvnw`, no local install required)
 - Node.js 20+ (for the Angular client, only needed outside the CI container)
 - Jenkins with the following plugins: Pipeline, SonarQube Scanner, JUnit, JaCoCo, Email Extension
 - A dedicated Linux user for Nexus (never run Nexus as `root`)
@@ -179,11 +195,6 @@ All lines should show `Downloading from nexus-public: http://nexus:8081/reposito
 - The pipeline stamps the produced Docker images with the shared `DOCKER_TAG` environment variable (currently `0.0.1`), keeping Maven artifact versions and Docker image tags aligned.
 - Snapshot builds (`-SNAPSHOT` suffix) are automatically routed to `maven-snapshots`; tagged releases go to `maven-releases`, so multiple versions of the same artifact can coexist and be rolled back to individually.
 
-```bash
-# List all published versions of an artifact
-curl -u admin:<password> \
-  "http://nexus:8081/service/rest/v1/search?repository=maven-releases&name=gateway_service"
-```
 
 > 📸 **Screenshot to add:** the Nexus **Browse** view of `maven-releases/buy01/gateway_service/` showing multiple version folders (e.g. `0.0.1`, `0.0.2`), demonstrating rollback capability by re-pulling an older version.
 
@@ -211,7 +222,7 @@ Docker is configured to treat `127.0.0.1:5000` as an **insecure registry** (loca
 ### 5.3 Build, tag, push
 
 ```bash
-docker compose -p 01e_com build
+docker compose -p 02e_com build
 
 docker login 127.0.0.1:5000 -u <NEXUS_USERNAME> -p <NEXUS_PASSWORD>
 
@@ -259,18 +270,5 @@ The same steps can be reproduced locally without Jenkins:
 docker compose -p up --build
 docker compose -p docker compose -f docker-compose.nexus.yml up -d
 ```
-
----
-
-## 7. Security & Access Control (Bonus)
-
-- **Anonymous access is disabled** on Nexus (`Administration → Security → Anonymous Access`).
-- A dedicated **service account** (`nexus-maven-publisher` in Jenkins credentials) is used by the pipeline instead of the `admin` account, following least-privilege.
-- **Roles** are scoped per repository:
-  - `ci-publisher` role: `nx-repository-view-maven2-maven-releases-add`, `nx-repository-view-maven2-maven-snapshots-add`, `nx-repository-view-docker-docker-hosted-add`
-  - `ci-reader` role: read-only access to `maven-public` and `docker-hosted` for dependency resolution / image pulls
-- Credentials are never stored in the repository — they are injected at runtime via Jenkins' `withCredentials` and written to a temporary `settings-nexus.xml` that is deleted at the end of each build (`rm -f settings-nexus.xml`).
-
-> 📸 **Screenshot to add:** the Nexus **Roles** and **Users** administration screens showing the `ci-publisher` / `ci-reader` roles and their assigned privileges.
 
 ---
