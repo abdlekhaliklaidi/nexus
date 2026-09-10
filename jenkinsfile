@@ -12,9 +12,6 @@ pipeline {
         COMPOSE         = 'docker compose -p 01e_com'
         APP_NETWORK     = '01e_com_default'
         DEPLOY_DIR      = '/opt/01e_com'
-        EMAIL           = 'louhabali@gmail.com'
-        EMAIL2          = 'ismailichi29@gmail.com'
-        EMAIL3          = 'xxx@gmail.com'
         SONAR_HOST_URL  = 'http://sonarqube:9000'
         // JAVA_SERVICES   = 'gateway_service user_service product_service media_service cart_service'
         JAVA_SERVICES   = 'gateway_service user_service product_service media_service cart_service order_service'
@@ -391,116 +388,117 @@ EOF
     }
 }
 
-        // stage('Start app stack for E2E') {
-        //     steps {
-        //         sh '''
-        //             set -e
-        //             echo "Bringing the application stack up for E2E testing..."
-        //             ${COMPOSE} up -d --remove-orphans
-        //             ${COMPOSE} ps
-        //         '''
-        //     }
-        // }
+        stage('Start app stack for E2E') {
+            steps {
+                sh '''
+                    set -e
+                    echo "Bringing the application stack up for E2E testing..."
+                    ${COMPOSE} up -d --remove-orphans
+                    ${COMPOSE} ps
+                '''
+            }
+        }
 
-    //     stage('E2E readiness smoke check') {
-    //         // Start the compose stack and wait for frontend + gateway
-    //         // to become reachable before running browser E2E tests.
-    //         steps {
-    //             echo "Running the services stack from ${DEPLOY_DIR}..."
+        stage('E2E readiness smoke check') {
+            // Start the compose stack and wait for frontend + gateway
+            // to become reachable before running browser E2E tests.
+            steps {
+                echo "Running the services stack from ${DEPLOY_DIR}..."
 
-    //             sh '''
-    //     set -e
+                sh '''
+        set -e
 
-    //     mkdir -p "${DEPLOY_DIR}"
+        mkdir -p "${DEPLOY_DIR}"
 
-    //     cp docker-compose.yml "${DEPLOY_DIR}/"
-    //     cp .env "${DEPLOY_DIR}/.env"
+        cp docker-compose.yml "${DEPLOY_DIR}/"
+        cp .env "${DEPLOY_DIR}/.env"
 
-    //     cd "${DEPLOY_DIR}"
+        cd "${DEPLOY_DIR}"
 
-    //     ${COMPOSE} up -d --remove-orphans
-    //     ${COMPOSE} ps
+        ${COMPOSE} up -d --remove-orphans
+        ${COMPOSE} ps
 
-    //     echo "Waiting for the app to become reachable for E2E tests..."
+        echo "Waiting for the app to become reachable for E2E tests..."
 
-    //     for i in $(seq 1 40); do
-    //         echo "Readiness check ${i}/40..."
+        for i in $(seq 1 40); do
+            echo "Readiness check ${i}/40..."
 
-    //         frontend_status=$(docker run --rm --network "${APP_NETWORK}" \
-    //             curlimages/curl:8.10.1 -k -sS -o /dev/null -w '%{http_code}' \
-    //             --max-time 10 "${E2E_BASE_URL}" || true)
-    //         gateway_status=$(docker run --rm --network "${APP_NETWORK}" \
-    //             curlimages/curl:8.10.1 -k -sS -o /dev/null -w '%{http_code}' \
-    //             --max-time 10 "https://gateway:${GATEWAY_PORT}" || true)
+            frontend_status=$(docker run --rm --network "${APP_NETWORK}" \
+                curlimages/curl:8.10.1 -k -sS -o /dev/null -w '%{http_code}' \
+                --max-time 10 "${E2E_BASE_URL}" || true)
+            gateway_status=$(docker run --rm --network "${APP_NETWORK}" \
+                curlimages/curl:8.10.1 -k -sS -o /dev/null -w '%{http_code}' \
+                --max-time 10 "https://gateway:${GATEWAY_PORT}" || true)
 
-    //         echo "Frontend HTTP status: ${frontend_status}"
-    //         echo "Gateway HTTP status: ${gateway_status}"
+            echo "Frontend HTTP status: ${frontend_status}"
+            echo "Gateway HTTP status: ${gateway_status}"
 
-    //         case "${frontend_status}" in
-    //             2*) frontend_ready=true ;;
-    //             *) frontend_ready=false ;;
-    //         esac
+            case "${frontend_status}" in
+                2*) frontend_ready=true ;;
+                *) frontend_ready=false ;;
+            esac
 
-    //         case "${gateway_status}" in
-    //             2*|3*|4*) gateway_ready=true ;;
-    //             *) gateway_ready=false ;;
-    //         esac
+            case "${gateway_status}" in
+                2*|3*|4*) gateway_ready=true ;;
+                *) gateway_ready=false ;;
+            esac
 
-    //         if [ "${frontend_ready}" = true ] && [ "${gateway_ready}" = true ]; then
-    //             echo "Frontend and gateway are reachable."
-    //             echo "E2E environment is ready."
+            if [ "${frontend_ready}" = true ] && [ "${gateway_ready}" = true ]; then
+                echo "Frontend and gateway are reachable."
+                echo "E2E environment is ready."
 
-    //             exit 0
-    //         fi
+                exit 0
+            fi
 
-    //         sleep 5
-    //     done
+            sleep 5
+        done
 
-    //     echo "Timed out waiting for frontend/gateway to respond."
+        echo "Timed out waiting for frontend/gateway to respond."
 
-    //     echo "Final Docker Compose status:"
-    //     ${COMPOSE} ps
+        echo "Final Docker Compose status:"
+        ${COMPOSE} ps
 
-    //     exit 1
-    // '''
-    //         }
-    //     }
+        exit 1
+    '''
+            }
+        }
 
-        // stage('Browser E2E tests') {
-        //     agent {
-        //         docker {
-        //             image 'mcr.microsoft.com/playwright:v1.54.1-jammy'
-        //             args '-u root --entrypoint="" --network 01e_com_default'
-        //             reuseNode true
-        //         }
-        //     }
-        //     environment {
-        //         PLAYWRIGHT_BASE_URL = 'https://frontend:8443'
-        //     }
-        //     steps {
-        //         sh '''
-        //             set -e
-        //             cd client
-        //             npm ci --legacy-peer-deps --no-audit --no-fund
-        //             npx playwright install --with-deps
-        //             PLAYWRIGHT_BASE_URL="${PLAYWRIGHT_BASE_URL}" npx playwright test --config=playwright.config.ts --reporter=line
-        //         '''
-        //     }
-        //     post {
-        //         always {
-        //             archiveArtifacts allowEmptyArchive: true, artifacts: 'client/playwright-report/**,client/test-results/**', fingerprint: true
-        //         }
-        //     }
-        // }
-        // stage('Stop application stack') {
-        //     steps {
-        //         sh '''
-        //         ${COMPOSE} down --remove-orphans
-        //         ${COMPOSE} ps
-        //         echo "E2E tests finished. Stopping the application stack to pass to Deployment"
-        //     '''
-        //     }
-        // }
+        stage('Browser E2E tests') {
+            agent {
+                docker {
+                    image 'mcr.microsoft.com/playwright:v1.54.1-jammy'
+                    args '-u root --entrypoint="" --network 01e_com_default'
+                    reuseNode true
+                }
+            }
+            environment {
+                PLAYWRIGHT_BASE_URL = 'https://frontend:8443'
+            }
+            steps {
+                sh '''
+                    set -e
+                    cd client
+                    npm ci --legacy-peer-deps --no-audit --no-fund
+                    npx playwright install --with-deps
+                    PLAYWRIGHT_BASE_URL="${PLAYWRIGHT_BASE_URL}" npx playwright test --config=playwright.config.ts --reporter=line
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts allowEmptyArchive: true, artifacts: 'client/playwright-report/**,client/test-results/**', fingerprint: true
+                }
+            }
+        }
+        stage('Stop application stack') {
+            steps {
+                sh '''
+                ${COMPOSE} down --remove-orphans
+                ${COMPOSE} ps
+                echo "E2E tests finished. Stopping the application stack to pass to Deployment"
+            '''
+            }
+        }
+        
         stage('Debug Env') {
             steps {
                 sh 'echo "BRANCH_NAME: ${BRANCH_NAME}"'
