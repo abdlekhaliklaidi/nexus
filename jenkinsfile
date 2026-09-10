@@ -143,7 +143,7 @@ pipeline {
                     done
                     wait
                 '''
-
+                
                 echo 'Building Docker container images...'
                 sh '${COMPOSE} build'
             }
@@ -498,7 +498,7 @@ EOF
             '''
             }
         }
-        
+
         stage('Debug Env') {
             steps {
                 sh 'echo "BRANCH_NAME: ${BRANCH_NAME}"'
