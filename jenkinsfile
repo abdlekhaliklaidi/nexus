@@ -299,19 +299,10 @@ pipeline {
 
         stage('Publish Maven Artifacts to Nexus') {
     when {
-    allOf {
-        not {
-            triggeredBy 'TimerTrigger'
-        }
-        anyOf {
-            branch 'main'
-            expression {
-                env.GIT_BRANCH && !env.GIT_BRANCH.endsWith('main')
-              }
-            }
-        }
+    not {
+        triggeredBy 'TimerTrigger'
     }
-
+}
 
     steps {
         withCredentials([
