@@ -68,7 +68,6 @@ docker run -d --name nexus \
 
 Inside the container, Nexus already runs under a dedicated, non-root `nexus` user by default (this is the image's built-in behavior) — confirmed with:
 
-
 Retrieve the initial admin password and log in:
 
 ```bash
