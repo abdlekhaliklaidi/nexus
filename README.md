@@ -21,6 +21,7 @@ Nexus is fully integrated into a **Jenkins CI/CD pipeline** that automatically b
 | `order_service` | Spring Boot | JAR + Docker image |
 | `client` (frontend) | Angular | Docker image only (Nginx) |
 
+
 ### Architecture
 
 Project Structure
