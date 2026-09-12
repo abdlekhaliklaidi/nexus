@@ -22,7 +22,6 @@ Nexus is fully integrated into a **Jenkins CI/CD pipeline** that automatically b
 | `client` (frontend) | Angular | Docker image only (Nginx) |
 
 
-
 ### Architecture
 
 Project Structure
